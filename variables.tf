@@ -1,6 +1,7 @@
 variable "project_id" {
-  description = "The GCP project ID"
+  description = "sixth-syntax-434405-p0"
   type        = string
+  default     = "sixth-syntax-434405-p0"
 }
 
 variable "region" {

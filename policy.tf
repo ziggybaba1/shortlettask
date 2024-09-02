@@ -1,12 +1,12 @@
 # Example Policy: Restricting access to certain ports
 resource "google_project_iam_member" "restrict_port" {
-  project = "<your-project-id>"
+  project = "sixth-syntax-434405-p0"
   role    = "roles/compute.viewer"
-  member  = "user:<your-email>"
+  member  = "user:seyiadejugbagbe1@gmail.com"
 
   condition {
     title       = "restrict-port"
     description = "Restrict access to port 80"
-    expression  = "resource.name.startsWith('projects/1234567890/global/firewalls/allow-port-80')"
+    expression  = "resource.name.startsWith('projects/sixth-syntax-434405-p0/global/firewalls/allow-port-80')"
   }
 }
