@@ -4,7 +4,7 @@ services:
     image: ziggybaba/php-api:latest
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: ./app/Dockerfile
       target: development
     ports:
       - '8000:8000'
