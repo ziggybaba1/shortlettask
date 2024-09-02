@@ -50,7 +50,7 @@ resource "google_compute_router_nat" "nat_config" {
 # Kubernetes Namespace
 resource "kubernetes_namespace" "default" {
   metadata {
-    name = "my-namespace"
+    name = "shortlet-namespace"
   }
 }
 
