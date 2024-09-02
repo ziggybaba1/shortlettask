@@ -5,7 +5,6 @@ services:
     build:
       context: .
       dockerfile: ./app/Dockerfile
-      target: development
     ports:
       - '8000:8000'
     volumes:
