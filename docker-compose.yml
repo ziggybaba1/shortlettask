@@ -3,9 +3,9 @@ services:
   php-api:
     image: ziggybaba/php-api:latest
     build:
-      context: .
+      context: ./app
       dockerfile: ./app/Dockerfile
     ports:
       - '8000:8000'
     volumes:
-      - .:/usr/src/app
+      - .:/var/www/html
