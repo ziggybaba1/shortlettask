@@ -2,7 +2,7 @@
 FROM php:8.0-apache
 
 # Copy the PHP script into the Docker image
-COPY index.php /var/www/html/
+COPY ./app/index.php /var/www/html/
 
 # Expose port 80 to the outside world
 EXPOSE 80
