@@ -2,7 +2,7 @@
 resource "google_project_iam_member" "restrict_port" {
   project = "sixth-syntax-434405-p0"
   role    = "roles/compute.viewer"
-  member  = "user:seyiadejugbagbe1@gmail.com"
+  member  = "user:seyiadejugbagbe@gmail.com"
 
   condition {
     title       = "restrict-port"
