@@ -16,11 +16,18 @@ resource "google_compute_subnetwork" "subnetwork" {
   region        = "us-central1"
 }
 
+resource "google_compute_disk" "default" {
+  name  = "my-disk"
+  type  = "pd-ssd"
+  zone  = "us-central1-a"
+  size  = 150  # Reduced from 900 GB to 250 GB
+}
+
 # Create GKE Cluster
 resource "google_container_cluster" "primary" {
   name               = "gke-cluster"
   location           = "us-central1"
-  initial_node_count = 3
+  initial_node_count = 1
 
   network    = google_compute_network.vpc_network.name
   subnetwork = google_compute_subnetwork.subnetwork.name
