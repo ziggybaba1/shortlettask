@@ -10,18 +10,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
-      - name: Set up Google Cloud SDK
-        uses: google-github-actions/setup-gcloud@v0.2.0
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
         with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          credentials_file: ${{ secrets.GCP_CREDENTIALS }}
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+      - name: Get GKE Credentials
+        uses: google-github-actions/get-gke-credentials@v1
           
-      - name: Use Node.js 20
-        uses: actions/setup-node@v2
-        with:
-          node-version: "20"
+      - name: Set up Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-compose
+        continue-on-error: true
 
       - name: Log in to Docker Hub
         run: |
@@ -33,6 +35,7 @@ jobs:
       - name: Build & Push Docker images
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
         run: |
           docker-compose -f docker-compose.yml build
           docker-compose -f docker-compose.yml push

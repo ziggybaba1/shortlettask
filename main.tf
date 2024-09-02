@@ -1,6 +1,5 @@
 provider "google" {
-  credentials = file("<YOUR_CREDENTIALS>.json")
-  project     = "<YOUR_PROJECT_ID>"
+  project     = "sixth-syntax-434405-p0"
   region      = "us-central1"
 }
 
