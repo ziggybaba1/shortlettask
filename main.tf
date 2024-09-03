@@ -19,18 +19,29 @@ provider "helm" {
   }
 }
 
-# VPC Network
+data "google_compute_network" "existing_network" {
+  name    = "my-vpc-network"
+  project = var.project_id
+}
+
 resource "google_compute_network" "vpc_network" {
+  count                   = data.google_compute_network.existing_network.id == null ? 1 : 0
   name                    = "my-vpc-network"
   auto_create_subnetworks = false
+  project                 = var.project_id
+}
+
+locals {
+  network_id = data.google_compute_network.existing_network.id != null ? data.google_compute_network.existing_network.id : google_compute_network.vpc_network[0].id
 }
 
 # Subnet
 resource "google_compute_subnetwork" "subnet" {
-  name          = "my-subnet"
+ name          = "my-subnet"
   ip_cidr_range = "10.0.0.0/24"
   region        = var.region
   network       = google_compute_network.vpc_network.id
+  project       = var.project_id
 }
 
 # NAT Gateway
