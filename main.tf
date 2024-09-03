@@ -19,33 +19,36 @@ data "google_compute_network" "existing_network" {
 
 # Create VPC if it doesn't exist
 resource "google_compute_network" "vpc_network" {
-  count = length(data.google_compute_network.existing_network.id) == 0 ? 1 : 0
-  name  = "my-vpc"
+  count   = length(data.google_compute_network.existing_network) == 0 ? 1 : 0
+  name    = "my-vpc"
+  project = var.project_id
 }
 
 # Create Subnetwork if it doesn't exist
 resource "google_compute_subnetwork" "subnetwork" {
-  count         = length(data.google_compute_network.existing_network.id) > 0 ? 0 : 1
+  count         = length(data.google_compute_network.existing_network) == 0 ? 1 : 0
   name          = "my-subnetwork"
   ip_cidr_range = "10.0.0.0/16"
-  network       = google_compute_network.vpc_network[0].id
+  network       = length(data.google_compute_network.existing_network) > 0 ? data.google_compute_network.existing_network.id : google_compute_network.vpc_network[0].id
   region        = var.region
+  project       = var.project_id
 }
 
 # Check if the GKE Cluster exists using a data block
 data "google_container_cluster" "existing_cluster" {
   name     = "gke-cluster"
   location = var.region
+  project  = var.project_id
 }
 
 # Create GKE Cluster if it doesn't exist
 resource "google_container_cluster" "primary" {
-  count              = length(data.google_container_cluster.existing_cluster.id) == 0 ? 1 : 0
+  count              = length(data.google_container_cluster.existing_cluster) == 0 ? 1 : 0
   name               = "gke-cluster"
   location           = var.region
   initial_node_count = 3
-  network            = google_compute_network.vpc_network[0].id
-  subnetwork         = google_compute_subnetwork.subnetwork[0].id
+  network            = length(data.google_compute_network.existing_network) > 0 ? data.google_compute_network.existing_network.id : google_compute_network.vpc_network[0].id
+  subnetwork         = length(data.google_compute_network.existing_network) > 0 ? google_compute_subnetwork.subnetwork[0].id : data.google_compute_subnetwork.existing_subnetwork.id
 
   node_config {
     machine_type = "e2-medium"
@@ -64,27 +67,32 @@ resource "google_container_cluster" "primary" {
   }
 }
 
-# Check if the NAT Gateway exists using a data block
-data "google_compute_network" "existing_nat_router" {
-  name     = "nat-router"
+# Check if the NAT Router exists using a data block
+data "google_compute_router" "existing_nat_router" {
+  name    = "nat-router"
+  network = length(data.google_compute_network.existing_network) > 0 ? data.google_compute_network.existing_network.name : google_compute_network.vpc_network[0].name
+  region  = var.region
+  project = var.project_id
+}
+
+# Create NAT Router if it doesn't exist
+resource "google_compute_router" "nat_router" {
+  count   = length(data.google_compute_router.existing_nat_router) == 0 ? 1 : 0
+  name    = "nat-router"
+  network = length(data.google_compute_network.existing_network) > 0 ? data.google_compute_network.existing_network.id : google_compute_network.vpc_network[0].id
+  region  = var.region
+  project = var.project_id
 }
 
 # Create NAT Gateway if it doesn't exist
-resource "google_compute_router" "nat_router" {
-  count   = length(data.google_compute_router.existing_nat_router.id) == 0 ? 1 : 0
-  name    = "nat-router"
-  network = google_compute_network.vpc_network[0].id
-  region  = var.region
-}
-
-
 resource "google_compute_router_nat" "nat_config" {
-  count                          = length(data.google_compute_router_nat.existing_nat_config.id) == 0 ? 1 : 0
-  name                           = "nat-config"
-  router                         = google_compute_router.nat_router[0].id
-  region                         = var.region
-  nat_ip_allocate_option         = "AUTO_ONLY"
+  count                              = length(data.google_compute_router.existing_nat_router) == 0 ? 1 : 0
+  name                               = "nat-config"
+  router                             = google_compute_router.nat_router[0].name
+  region                             = var.region
+  nat_ip_allocate_option             = "AUTO_ONLY"
   source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
+  project                            = var.project_id
 }
 
 # Kubernetes Namespace
