@@ -7,8 +7,19 @@ provider "google" {
 # Get default client config
 data "google_client_config" "default" {}
 
+# Check if VPC Network already exists
+data "google_compute_network" "existing_vpc_network" {
+  name = "shortlet-vpc-network"
+}
+
+# Define local variable for conditional creation
+locals {
+  network_exists = length(data.google_compute_network.existing_vpc_network.*.name) > 0
+}
+
 # Define VPC Network (explicit creation)
 resource "google_compute_network" "vpc_network" {
+  count                   = local.network_exists ? 0 : 1
   name                    = "shortlet-vpc-network"
   auto_create_subnetworks = false
   project                 = var.project_id
@@ -21,6 +32,8 @@ resource "google_compute_subnetwork" "subnet" {
   region        = var.region
   network       = google_compute_network.vpc_network.id
   project       = var.project_id
+
+  depends_on = [google_compute_network.vpc_network]
 }
 
 # Define Router and NAT Gateway (explicit creation)
@@ -28,6 +41,8 @@ resource "google_compute_router" "router" {
   name    = "shortlet-router"
   region  = var.region
   network = google_compute_network.vpc_network.id
+
+  depends_on = [google_compute_network.vpc_network]
 }
 
 resource "google_compute_router_nat" "nat" {
@@ -36,6 +51,8 @@ resource "google_compute_router_nat" "nat" {
   region                             = var.region
   nat_ip_allocate_option             = "AUTO_ONLY"
   source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
+
+  depends_on = [google_compute_router.router]
 }
 
 #
@@ -47,6 +64,8 @@ resource "google_container_cluster" "primary" {
   initial_node_count = 3
   network    = google_compute_network.vpc_network.id
   subnetwork = google_compute_subnetwork.subnet.id
+
+  depends_on = [google_compute_network.vpc_network]
 }
 
 # Define GKE Node Pool with adjustments
