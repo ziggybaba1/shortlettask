@@ -6,16 +6,16 @@ provider "google" {
 data "google_client_config" "default" {}
 
 provider "kubernetes" {
-  host                   = "https://${google_container_cluster.primary.endpoint}"
+  host                   = "https://${google_container_cluster.primary[0].endpoint}"
   token                  = data.google_client_config.default.access_token
-  cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
+  cluster_ca_certificate = base64decode(google_container_cluster.primary[0].master_auth[0].cluster_ca_certificate)
 }
 
 provider "helm" {
   kubernetes {
-    host                   = "https://${google_container_cluster.primary.endpoint}"
+    host                   = "https://${google_container_cluster.primary[0].endpoint}"
     token                  = data.google_client_config.default.access_token
-    cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
+    cluster_ca_certificate = base64decode(google_container_cluster.primary[0].master_auth[0].cluster_ca_certificate)
   }
 }
 
@@ -47,7 +47,7 @@ resource "google_compute_subnetwork" "subnet" {
   name          = "my-subnet"
   ip_cidr_range = "10.0.0.0/24"
   region        = var.region
-  network       = google_compute_network.vpc_network[count.index].id
+  network       = google_compute_network.vpc_network[0].id
   project       = var.project_id
 }
 
@@ -56,12 +56,13 @@ resource "google_compute_router" "router" {
   count = length(data.google_compute_network.existing_vpc_network.*.name) == 0 ? 1 : 0
   name    = "my-router"
   region  = var.region
-  network = google_compute_network.vpc_network[count.index].id
+  network = google_compute_network.vpc_network[0].id
 }
 
 resource "google_compute_router_nat" "nat" {
+  count = length(data.google_compute_network.existing_vpc_network.*.name) == 0 ? 1 : 0
   name                               = "my-router-nat"
-  router                             = google_compute_router.router[count.index].name
+  router                             = google_compute_router.router[0].name
   region                             = var.region
   nat_ip_allocate_option             = "AUTO_ONLY"
   source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
@@ -71,7 +72,7 @@ resource "google_compute_router_nat" "nat" {
 resource "google_compute_firewall" "allow_http" {
   count = length(data.google_compute_network.existing_vpc_network.*.name) == 0 ? 1 : 0
   name    = "allow-http"
-  network = google_compute_network.vpc_network[count.index].id
+  network = google_compute_network.vpc_network[0].id
 
   allow {
     protocol = "tcp"
@@ -94,15 +95,15 @@ resource "google_container_cluster" "primary" {
   location         = var.region
   initial_node_count = 3
 
-  network    = google_compute_network.vpc_network[count.index].name
-  subnetwork = google_compute_subnetwork.subnet[count.index].name
+  network    = google_compute_network.vpc_network[0].name
+  subnetwork = google_compute_subnetwork.subnet[0].name
 }
 
 resource "google_container_node_pool" "primary_nodes" {
-  count      = google_container_cluster.primary.count
+  count      = length(google_container_cluster.primary) > 0 ? 1 : 0
   name       = "my-node-pool"
   location   = var.region
-  cluster    = google_container_cluster.primary[count.index].name
+  cluster    = google_container_cluster.primary[0].name
   node_count = 1
 
   node_config {
