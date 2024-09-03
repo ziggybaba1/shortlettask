@@ -27,10 +27,11 @@ resource "google_compute_network" "vpc_network" {
 
 # Define Subnet (explicit creation)
 resource "google_compute_subnetwork" "subnet" {
+  count                   = local.network_exists ? 0 : 1
   name          = "shortlet-subnet"
   ip_cidr_range = "10.0.0.0/24"
   region        = var.region
-  network       = google_compute_network.vpc_network.id
+  network       = google_compute_network.vpc_network[count.index].id
   project       = var.project_id
 
   depends_on = [google_compute_network.vpc_network]
@@ -38,9 +39,10 @@ resource "google_compute_subnetwork" "subnet" {
 
 # Define Router and NAT Gateway (explicit creation)
 resource "google_compute_router" "router" {
+  count                   = local.network_exists ? 0 : 1
   name    = "shortlet-router"
   region  = var.region
-  network = google_compute_network.vpc_network.id
+  network = google_compute_network.vpc_network[count.index].id
 
   depends_on = [google_compute_network.vpc_network]
 }
@@ -59,10 +61,11 @@ resource "google_compute_router_nat" "nat" {
 
 # Define GKE Cluster
 resource "google_container_cluster" "primary" {
+  count                   = local.network_exists ? 0 : 1
   name             = "shortlet-cluster"
   location         = var.region
   initial_node_count = 3
-  network    = google_compute_network.vpc_network.id
+  network    = google_compute_network.vpc_network[count.index].id
   subnetwork = google_compute_subnetwork.subnet.id
 
   depends_on = [google_compute_network.vpc_network]
