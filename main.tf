@@ -24,9 +24,16 @@ resource "google_compute_network" "vpc_network" {
   project = var.project_id
 }
 
+# Check if the Subnetwork exists using a data block
+data "google_compute_subnetwork" "existing_subnetwork" {
+  name    = "my-subnetwork"
+  region  = var.region
+  project = var.project_id
+}
+
 # Create Subnetwork if it doesn't exist
 resource "google_compute_subnetwork" "subnetwork" {
-  count         = length(data.google_compute_network.existing_network) == 0 ? 1 : 0
+  count         = length(data.google_compute_subnetwork.existing_subnetwork) == 0 ? 1 : 0
   name          = "my-subnetwork"
   ip_cidr_range = "10.0.0.0/16"
   network       = length(data.google_compute_network.existing_network) > 0 ? data.google_compute_network.existing_network.id : google_compute_network.vpc_network[0].id
@@ -48,7 +55,7 @@ resource "google_container_cluster" "primary" {
   location           = var.region
   initial_node_count = 3
   network            = length(data.google_compute_network.existing_network) > 0 ? data.google_compute_network.existing_network.id : google_compute_network.vpc_network[0].id
-  subnetwork         = length(data.google_compute_network.existing_network) > 0 ? google_compute_subnetwork.subnetwork[0].id : data.google_compute_subnetwork.existing_subnetwork.id
+  subnetwork         = length(data.google_compute_subnetwork.existing_subnetwork) > 0 ? data.google_compute_subnetwork.existing_subnetwork.id : google_compute_subnetwork.subnetwork[0].id
 
   node_config {
     machine_type = "e2-medium"
