@@ -35,7 +35,7 @@ resource "google_compute_subnetwork" "subnet" {
   name          = "my-subnet"
   ip_cidr_range = "10.0.0.0/24"
   region        = var.region
-  network       = google_compute_network.vpc_network[0].id
+  network       = google_compute_network.vpc_network.id
   project       = var.project_id
 }
 
@@ -79,13 +79,11 @@ resource "google_compute_firewall" "allow_http" {
 # Use a conditional expression to create the cluster only if it doesn't exist
 # count            = length(data.google_container_cluster.existing_cluster.*.name) == 0 ? 1 : 0
 resource "google_container_cluster" "primary" {
-  
   name             = "my-gke-cluster"
   location         = var.region
   initial_node_count = 3
-
-  network    = length(google_compute_network.vpc_network) > 0 ? google_compute_network.vpc_network[0].name : data.google_compute_network.existing_vpc_network.name
-  subnetwork = length(google_compute_subnetwork.subnet) > 0 ? google_compute_subnetwork.subnet[0].name : data.google_compute_subnetwork.existing_subnet.name
+  network    = google_compute_network.vpc_network.id
+  subnetwork = google_compute_subnetwork.subnet.id
 }
 
 resource "google_container_node_pool" "primary_nodes" {
