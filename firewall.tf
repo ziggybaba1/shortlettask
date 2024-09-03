@@ -1,7 +1,6 @@
-# Define firewall rules for secure communication
 resource "google_compute_firewall" "allow_internal" {
   name    = "allow-internal"
-  network = google_compute_network.vpc_network[0].name
+  network = google_compute_network.vpc_network.name
 
   allow {
     protocol = "icmp"
@@ -9,11 +8,17 @@ resource "google_compute_firewall" "allow_internal" {
 
   allow {
     protocol = "tcp"
-    ports    = ["22", "80", "443"]
+    ports    = ["80", "443"]  # Removed port 22 (SSH) for security
   }
 
-  source_ranges = ["10.0.0.0/16"]
-  lifecycle {
-    prevent_destroy = true
-  }
+  # This range should match your subnet CIDR
+  source_ranges = ["10.0.0.0/24"]  
+
+  # Added a description for better documentation
+  description = "Allows internal traffic on specified ports"
+
+  # Added target tags for more granular control
+  target_tags = ["web-server"]
+
+  # Removed the prevent_destroy lifecycle rule
 }
