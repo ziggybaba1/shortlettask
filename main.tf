@@ -66,7 +66,7 @@ resource "google_container_cluster" "primary" {
   location         = var.region
   initial_node_count = 3
   network    = google_compute_network.vpc_network[0].id
-  subnetwork = google_compute_subnetwork.subnet.id
+  subnetwork = google_compute_subnetwork.subnet[0].id
 
   depends_on = [google_compute_network.vpc_network]
 }
