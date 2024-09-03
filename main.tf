@@ -89,18 +89,17 @@ resource "google_container_cluster" "primary" {
 }
 
 resource "google_container_node_pool" "primary_nodes" {
-  
   name       = "my-node-pool"
   location   = var.region
-  cluster    = google_container_cluster.primary.name
-  node_count = 1
+  cluster    = google_container_cluster.primary[0].name
+  node_count = 2  # Reduce the number of nodes
 
   node_config {
     preemptible  = true
-    machine_type = "e2-medium"
+    machine_type = "e2-small"  # Use a smaller machine type
 
-    disk_size_gb = 50  # Reduced from default 100GB
-    disk_type    = "pd-standard"  # Changed from SSD to standard persistent disk
+    disk_size_gb = 50  # Ensure this is within your quota limits
+    disk_type    = "pd-standard"
 
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
@@ -109,6 +108,7 @@ resource "google_container_node_pool" "primary_nodes" {
     tags = ["web-server"]
   }
 }
+
 
 provider "kubernetes" {
   host                   = "https://${google_container_cluster.primary.endpoint}"
