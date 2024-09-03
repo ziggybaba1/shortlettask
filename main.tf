@@ -11,18 +11,31 @@ provider "kubernetes" {
   token                  = data.google_client_config.default.access_token
 }
 
-# VPC Network
+# Check if the VPC network already exists using a data block
+data "google_compute_network" "existing_network" {
+  name    = "my-vpc"
+  project = var.project_id
+}
+
+# Create VPC if it doesn't exist
 resource "google_compute_network" "vpc_network" {
   count = length(data.google_compute_network.existing_network.id) == 0 ? 1 : 0
   name  = "my-vpc"
 }
 
-# Subnetwork
+# Check if the Subnetwork already exists using a data block
+data "google_compute_subnetwork" "existing_subnetwork" {
+  name    = "my-subnetwork"
+  region  = var.region
+  network = data.google_compute_network.existing_network.id
+}
+
+# Create Subnet if it doesn't exist
 resource "google_compute_subnetwork" "subnetwork" {
   count         = length(data.google_compute_subnetwork.existing_subnetwork.id) == 0 ? 1 : 0
   name          = "my-subnetwork"
   ip_cidr_range = "10.0.0.0/16"
-  network       = google_compute_network.vpc_network[0].name
+  network       = google_compute_network.vpc_network[0].id
   region        = var.region
 }
 
@@ -124,12 +137,8 @@ resource "helm_release" "existing_grafana" {
   name       = "grafana"
   chart      = "grafana"
   repository = "https://grafana.github.io/helm-charts"
-  namespace  = "monitoring"
+  namespace  = kubernetes_namespace.default.metadata[0].name
   version    = "6.16.10"
-  set {
-    name  = "adminPassword"
-    value = "admin"
-  }
 }
 
 # Helm Release for Prometheus
@@ -137,6 +146,6 @@ resource "helm_release" "existing_prometheus" {
   name       = "prometheus"
   chart      = "prometheus"
   repository = "https://prometheus-community.github.io/helm-charts"
-  namespace  = "monitoring"
+  namespace  = kubernetes_namespace.default.metadata[0].name
   version    = "14.11.1"
 }
