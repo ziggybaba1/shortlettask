@@ -19,10 +19,10 @@ locals {
 
 # Define VPC Network (explicit creation)
 resource "google_compute_network" "vpc_network" {
-  count                   = local.network_exists ? 0 : 1
-  name                    = "shortlet-vpc-network"
+  count = local.network_exists ? 0 : 1
+  name  = "shortlet-vpc-network"
   auto_create_subnetworks = false
-  project                 = var.project_id
+  project = var.project_id
 }
 
 # Define Subnet (explicit creation)
@@ -39,11 +39,10 @@ resource "google_compute_subnetwork" "subnet" {
 
 # Define Router and NAT Gateway (explicit creation)
 resource "google_compute_router" "router" {
-  count                   = local.network_exists ? 0 : 1
-  name    = "shortlet-router"
-  region  = var.region
+  count = local.network_exists ? 0 : 1
+  name = "shortlet-router"
+  region = var.region
   network = google_compute_network.vpc_network[0].id
-
   depends_on = [google_compute_network.vpc_network]
 }
 
