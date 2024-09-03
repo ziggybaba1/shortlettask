@@ -31,10 +31,22 @@ resource "google_compute_subnetwork" "subnet" {
   name          = "shortlet-subnet"
   ip_cidr_range = "10.0.0.0/24"
   region        = var.region
-  network       = google_compute_network.vpc_network[0].id
+  network       = google_compute_network.vpc_network[count].id
   project       = var.project_id
 
   depends_on = [google_compute_network.vpc_network]
+}
+
+# Check if VPC Network already exists
+data "google_compute_router" "existing_router" {
+  count                   = local.network_exists ? 0 : 1
+  name = "shortlet-router"
+  network = google_compute_network.vpc_network[count].id
+}
+
+# Define local variable for conditional creation
+locals {
+  router_exists = length(data.google_compute_router.existing_router.*.name) > 0
 }
 
 # Define Router and NAT Gateway (explicit creation)
@@ -42,13 +54,14 @@ resource "google_compute_router" "router" {
   count = local.network_exists ? 0 : 1
   name = "shortlet-router"
   region = var.region
-  network = google_compute_network.vpc_network[0].id
+  network = google_compute_network.vpc_network[count].id
   depends_on = [google_compute_network.vpc_network]
 }
 
 resource "google_compute_router_nat" "nat" {
+  count                   = local.router_exists ? 0 : 1
   name                               = "shortlet-router-nat"
-  router                             = google_compute_router.router[0].name
+  router                             = google_compute_router.router[count].name
   region                             = var.region
   nat_ip_allocate_option             = "AUTO_ONLY"
   source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
@@ -62,8 +75,8 @@ resource "google_container_cluster" "primary" {
   name                    = "shortlet-cluster"
   location                = var.region
   initial_node_count      = 3
-  network                 = google_compute_network.vpc_network[0].id
-  subnetwork              = google_compute_subnetwork.subnet[0].id
+  network                 = google_compute_network.vpc_network[count].id
+  subnetwork              = google_compute_subnetwork.subnet[count].id
 
   depends_on = [google_compute_network.vpc_network]
 }
