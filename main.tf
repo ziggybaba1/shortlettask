@@ -18,7 +18,6 @@ resource "google_compute_network" "vpc_network" {
 data "google_compute_subnetwork" "existing_subnetwork" {
   name    = "my-subnetwork"
   region  = var.region
-  network = "my-vpc"
 }
 
 # Create Subnet if it doesn't exist

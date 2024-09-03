@@ -1,6 +1,8 @@
 # Check if Grafana exists using a data block
 data "helm_release" "existing_grafana" {
   name = "grafana"
+  chart      = "grafana"
+  repository = "https://grafana.github.io/helm-charts"
   namespace = kubernetes_namespace.default.metadata[0].name
 }
 

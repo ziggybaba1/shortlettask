@@ -1,7 +1,7 @@
 # Define firewall rules for secure communication
 resource "google_compute_firewall" "allow_internal" {
   name    = "allow-internal"
-  network = google_compute_network.vpc_network.name
+  network = google_compute_network.vpc_network[0].name
 
   allow {
     protocol = "icmp"

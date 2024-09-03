@@ -1,6 +1,8 @@
 # Check if Prometheus exists using a data block
 data "helm_release" "existing_prometheus" {
-  name = "prometheus"
+  name       = "prometheus"
+  chart      = "prometheus"
+  repository = "https://prometheus-community.github.io/helm-charts"
   namespace = kubernetes_namespace.default.metadata[0].name
 }
 
