@@ -88,10 +88,10 @@ resource "google_container_cluster" "primary" {
 }
 
 resource "google_container_node_pool" "primary_nodes" {
-  count      = length(google_container_cluster.primary) > 0 ? 1 : 0
+  
   name       = "my-node-pool"
   location   = var.region
-  cluster    = google_container_cluster.primary[0].name
+  cluster    = google_container_cluster.primary.name
   node_count = 1
 
   node_config {
@@ -110,16 +110,16 @@ resource "google_container_node_pool" "primary_nodes" {
 }
 
 provider "kubernetes" {
-  host                   = "https://${google_container_cluster.primary[0].endpoint}"
+  host                   = "https://${google_container_cluster.primary.endpoint}"
   token                  = data.google_client_config.default.access_token
-  cluster_ca_certificate = base64decode(google_container_cluster.primary[0].master_auth[0].cluster_ca_certificate)
+  cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
 }
 
 provider "helm" {
   kubernetes {
-    host                   = "https://${google_container_cluster.primary[0].endpoint}"
+    host                   = "https://${google_container_cluster.primary.endpoint}"
     token                  = data.google_client_config.default.access_token
-    cluster_ca_certificate = base64decode(google_container_cluster.primary[0].master_auth[0].cluster_ca_certificate)
+    cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
   }
 }
 
