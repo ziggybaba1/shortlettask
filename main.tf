@@ -18,105 +18,76 @@ locals {
 }
 
 # Define VPC Network (explicit creation)
+# Define a conditional VPC creation
 resource "google_compute_network" "vpc_network" {
   count = local.network_exists ? 0 : 1
   name  = "shortlet-vpc-network"
   auto_create_subnetworks = false
-  project = var.project_id
 }
 
-# Define Subnet (explicit creation)
-resource "google_compute_subnetwork" "subnet" {
-  count                   = local.network_exists ? 0 : 1
-  name          = "shortlet-subnet"
-  ip_cidr_range = "10.0.0.0/24"
-  region        = var.region
-  network       = google_compute_network.vpc_network[count.index].id
-  project       = var.project_id
+# Ensure the firewall rule depends on the network creation
+resource "google_compute_firewall" "allow_http" {
+  count = local.network_exists ? 0 : 1  # Only create if the network is created
+  name  = "allow-http"
+  network = google_compute_network.vpc_network[0].id
+  allow {
+    protocol = "tcp"
+    ports    = ["80"]
+  }
 
   depends_on = [google_compute_network.vpc_network]
 }
 
-# Check if VPC Network already exists
-data "google_compute_router" "existing_router" {
-  count = local.network_exists ? 0 : 1
-  name = "shortlet-router"
-  network = google_compute_network.vpc_network[count.index].id
-}
-
-# Define local variable for conditional creation
-locals {
-  router_exists = length(data.google_compute_router.existing_router.*.name) > 0
-}
-
-# Define Router and NAT Gateway (explicit creation)
-resource "google_compute_router" "router" {
-  count = local.network_exists ? 0 : 1
-  name = "shortlet-router"
-  region = var.region
-  network = google_compute_network.vpc_network[count.index].id
-  depends_on = [google_compute_network.vpc_network]
-}
-
-resource "google_compute_router_nat" "nat" {
-  count                   = local.router_exists ? 0 : 1
-  name                               = "shortlet-router-nat"
-  router                             = google_compute_router.router[count.index].name
-  region                             = var.region
-  nat_ip_allocate_option             = "AUTO_ONLY"
-  source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
-
-  depends_on = [google_compute_router.router]
-}
-
-# Define GKE Cluster
+# GKE Cluster creation
 resource "google_container_cluster" "primary" {
-  count                   = local.network_exists ? 0 : 1
-  name                    = "shortlet-cluster"
-  location                = var.region
-  initial_node_count      = 3
-  network                 = google_compute_network.vpc_network[count.index].id
-  subnetwork              = google_compute_subnetwork.subnet[count.index].id
+  count = local.network_exists ? 0 : 1  # Only create if the network exists
+  name  = "shortlet-cluster"
+  location = var.region
+  network  = google_compute_network.vpc_network[0].id
+  initial_node_count = 3
 
   depends_on = [google_compute_network.vpc_network]
 }
 
-# Define GKE Node Pool with adjustments
+# Node Pool creation with conditional checks
 resource "google_container_node_pool" "primary_nodes" {
-  name       = "shortlet-pool"
-  location   = var.region
-  cluster    = google_container_cluster.primary[0].name
+  count = local.network_exists ? 0 : 1  # Only create if the cluster exists
+  name = "shortlet-pool"
+  cluster = google_container_cluster.primary[0].name
   node_count = 1
 
   node_config {
-    preemptible  = true
     machine_type = "e2-small"
-
-    disk_size_gb = 50  # Reduced from default 100GB
-    disk_type    = "pd-standard"  # Changed from SSD to standard persistent disk
+    preemptible  = true
 
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
     ]
-
-    tags = ["web-server"]
   }
+
+  depends_on = [google_container_cluster.primary]
 }
 
-# Configure Kubernetes Providers
+# Ensure Kubernetes provider depends on the GKE cluster creation
 provider "kubernetes" {
   host                   = "https://${google_container_cluster.primary[0].endpoint}"
   token                  = data.google_client_config.default.access_token
   cluster_ca_certificate = base64decode(google_container_cluster.primary[0].master_auth[0].cluster_ca_certificate)
+
+  # depends_on = [google_container_cluster.primary]
 }
 
+# Ensure Helm provider depends on the GKE cluster creation
 provider "helm" {
   kubernetes {
     host                   = "https://${google_container_cluster.primary[0].endpoint}"
     token                  = data.google_client_config.default.access_token
     cluster_ca_certificate = base64decode(google_container_cluster.primary[0].master_auth[0].cluster_ca_certificate)
   }
+
+  # depends_on = [google_container_cluster.primary]
 }
+
 
 # Kubernetes Resources
 resource "kubernetes_namespace" "api_namespace" {
