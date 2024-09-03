@@ -71,7 +71,6 @@ resource "google_compute_firewall" "allow_http" {
 
 # Define a data block to check if the GKE cluster exists
 data "google_container_cluster" "existing_cluster" {
-  count    = length(google_container_cluster.primary) > 0 ? 0 : 1
   name     = "my-gke-cluster"
   location = var.region
 }
