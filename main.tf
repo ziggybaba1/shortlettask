@@ -1,54 +1,36 @@
+# Configure Google Cloud Provider
 provider "google" {
   project = var.project_id
   region  = var.region
 }
 
+# Get default client config
 data "google_client_config" "default" {}
 
-
-data "google_compute_network" "existing_vpc_network" {
-  name    = "my-vpc-network"
-  project = var.project_id
-}
-
+# Define VPC Network (explicit creation)
 resource "google_compute_network" "vpc_network" {
-  count                   = length(data.google_compute_network.existing_vpc_network.*.name) == 0 ? 1 : 0
   name                    = "my-vpc-network"
   auto_create_subnetworks = false
   project                 = var.project_id
 }
 
-locals {
-  network_id = length(google_compute_network.vpc_network) > 0 ? google_compute_network.vpc_network[0].id : data.google_compute_network.existing_vpc_network.id
-  subnetwork_id = length(google_compute_subnetwork.subnet) > 0 ? google_compute_subnetwork.subnet[0].id : data.google_compute_subnetwork.existing_subnet.id
-}
-
-data "google_compute_subnetwork" "existing_subnet" {
-  name    = "my-subnet"
-  project = var.project_id
-  region  = var.region
-}
-
-# Subnet
+# Define Subnet (explicit creation)
 resource "google_compute_subnetwork" "subnet" {
-  count = length(data.google_compute_subnetwork.existing_subnet.*.name) == 0 ? 1 : 0
   name          = "my-subnet"
   ip_cidr_range = "10.0.0.0/24"
   region        = var.region
-  network       = google_compute_network.vpc_network[0].id
+  network       = google_compute_network.vpc_network.id
   project       = var.project_id
 }
 
-# NAT Gateway
+# Define Router and NAT Gateway (explicit creation)
 resource "google_compute_router" "router" {
-  count = length(data.google_compute_network.existing_vpc_network.*.name) == 0 ? 1 : 0
   name    = "my-router"
   region  = var.region
-  network = google_compute_network.vpc_network[0].id
+  network = google_compute_network.vpc_network.id
 }
 
 resource "google_compute_router_nat" "nat" {
-  count = length(data.google_compute_network.existing_vpc_network.*.name) == 0 ? 1 : 0
   name                               = "my-router-nat"
   router                             = google_compute_router.router[0].name
   region                             = var.region
@@ -56,11 +38,10 @@ resource "google_compute_router_nat" "nat" {
   source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
 }
 
-# Firewall rule
+# Define Firewall Rule (allow only HTTP)
 resource "google_compute_firewall" "allow_http" {
-  count = length(data.google_compute_network.existing_vpc_network.*.name) == 0 ? 1 : 0
   name    = "allow-http"
-  network = google_compute_network.vpc_network[0].id
+  network = google_compute_network.vpc_network.id
 
   allow {
     protocol = "tcp"
@@ -70,14 +51,7 @@ resource "google_compute_firewall" "allow_http" {
   source_ranges = ["0.0.0.0/0"]
 }
 
-# Define a data block to check if the GKE cluster exists
-# data "google_container_cluster" "existing_cluster" {
-#   name     = "my-gke-cluster"
-#   location = var.region
-# }
-
-# Use a conditional expression to create the cluster only if it doesn't exist
-# count            = length(data.google_container_cluster.existing_cluster.*.name) == 0 ? 1 : 0
+# Define GKE Cluster
 resource "google_container_cluster" "primary" {
   name             = "my-gke-cluster"
   location         = var.region
@@ -86,6 +60,7 @@ resource "google_container_cluster" "primary" {
   subnetwork = google_compute_subnetwork.subnet.id
 }
 
+# Define GKE Node Pool with adjustments
 resource "google_container_node_pool" "primary_nodes" {
   
   name       = "my-node-pool"
@@ -108,6 +83,7 @@ resource "google_container_node_pool" "primary_nodes" {
   }
 }
 
+# Configure Kubernetes Providers
 provider "kubernetes" {
   host                   = "https://${google_container_cluster.primary.endpoint}"
   token                  = data.google_client_config.default.access_token
@@ -122,7 +98,7 @@ provider "helm" {
   }
 }
 
-# Kubernetes resources
+# Kubernetes Resources (consider separate files for complex deployments)
 resource "kubernetes_namespace" "api_namespace" {
   metadata {
     name = "api-namespace"
@@ -186,6 +162,7 @@ resource "kubernetes_service" "api_service" {
   }
 }
 
+# Deploy Helm Charts with updated versions
 resource "helm_release" "grafana" {
   name       = "grafana"
   repository = "https://grafana.github.io/helm-charts"
