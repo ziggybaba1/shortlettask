@@ -58,12 +58,15 @@ resource "google_container_cluster" "primary" {
   }
 
   master_auth {
-    username = ""
-    password = ""
     client_certificate_config {
       issue_client_certificate = false
     }
   }
+}
+
+# Check if the NAT Gateway exists using a data block
+data "google_compute_network" "existing_nat_router" {
+  name     = "nat-router"
 }
 
 # Create NAT Gateway if it doesn't exist
@@ -73,6 +76,7 @@ resource "google_compute_router" "nat_router" {
   network = google_compute_network.vpc_network[0].id
   region  = var.region
 }
+
 
 resource "google_compute_router_nat" "nat_config" {
   count                          = length(data.google_compute_router_nat.existing_nat_config.id) == 0 ? 1 : 0
