@@ -70,14 +70,15 @@ resource "google_compute_firewall" "allow_http" {
 }
 
 # Define a data block to check if the GKE cluster exists
-data "google_container_cluster" "existing_cluster" {
-  name     = "my-gke-cluster"
-  location = var.region
-}
+# data "google_container_cluster" "existing_cluster" {
+#   name     = "my-gke-cluster"
+#   location = var.region
+# }
 
 # Use a conditional expression to create the cluster only if it doesn't exist
+# count            = length(data.google_container_cluster.existing_cluster.*.name) == 0 ? 1 : 0
 resource "google_container_cluster" "primary" {
-  count            = length(data.google_container_cluster.existing_cluster.*.name) == 0 ? 1 : 0
+  
   name             = "my-gke-cluster"
   location         = var.region
   initial_node_count = 3
