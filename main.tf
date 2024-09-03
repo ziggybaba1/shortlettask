@@ -12,14 +12,15 @@ data "google_compute_network" "existing_vpc_network" {
 }
 
 resource "google_compute_network" "vpc_network" {
-  count                   = data.google_compute_network.existing_vpc_network.id == null ? 1 : 0
+  count                   = length(data.google_compute_network.existing_vpc_network.*.name) == 0 ? 1 : 0
   name                    = "my-vpc-network"
   auto_create_subnetworks = false
   project                 = var.project_id
 }
 
 locals {
-  network_id = data.google_compute_network.existing_vpc_network.id != null ? data.google_compute_network.existing_vpc_network.id : google_compute_network.vpc_network[0].id
+  network_id = length(google_compute_network.vpc_network) > 0 ? google_compute_network.vpc_network[0].id : data.google_compute_network.existing_vpc_network.id
+  subnetwork_id = length(google_compute_subnetwork.subnet) > 0 ? google_compute_subnetwork.subnet[0].id : data.google_compute_subnetwork.existing_subnet.id
 }
 
 data "google_compute_subnetwork" "existing_subnet" {
@@ -83,8 +84,8 @@ resource "google_container_cluster" "primary" {
   location         = var.region
   initial_node_count = 3
 
-  network    = google_compute_network.vpc_network[0].name
-  subnetwork = google_compute_subnetwork.subnet[0].name
+  network    = length(google_compute_network.vpc_network) > 0 ? google_compute_network.vpc_network[0].name : data.google_compute_network.existing_vpc_network.name
+  subnetwork = length(google_compute_subnetwork.subnet) > 0 ? google_compute_subnetwork.subnet[0].name : data.google_compute_subnetwork.existing_subnet.name
 }
 
 resource "google_container_node_pool" "primary_nodes" {
