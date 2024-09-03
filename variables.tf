@@ -10,3 +10,8 @@ variable "region" {
   default     = "us-central1"
 }
 
+variable "docker_hub_username" {
+  description = "ziggybaba"
+  type        = string
+  default=    "ziggybaba"
+}
