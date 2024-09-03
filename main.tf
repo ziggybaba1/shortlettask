@@ -3,121 +3,91 @@ provider "google" {
   region  = var.region
 }
 
-data "google_client_config" "default" {}
-
-provider "kubernetes" {
-  host                   = google_container_cluster.primary[0].endpoint
-  cluster_ca_certificate = base64decode(google_container_cluster.primary[0].master_auth[0].cluster_ca_certificate)
-  token                  = data.google_client_config.default.access_token
-}
-
-# Check if the VPC network exists using a data block
-data "google_compute_network" "existing_network" {
-  name    = "my-vpc"
-  project = var.project_id
-}
-
-# Create VPC if it doesn't exist
+# VPC Network
 resource "google_compute_network" "vpc_network" {
-  count   = length(data.google_compute_network.existing_network) == 0 ? 1 : 0
-  name    = "my-vpc"
-  project = var.project_id
+  name                    = "my-vpc-network"
+  auto_create_subnetworks = false
 }
 
-# Check if the Subnetwork exists using a data block
-data "google_compute_subnetwork" "existing_subnetwork" {
-  name    = "my-subnetwork"
-  region  = var.region
-  project = var.project_id
-}
-
-# Create Subnetwork if it doesn't exist
-resource "google_compute_subnetwork" "subnetwork" {
-  count         = length(data.google_compute_subnetwork.existing_subnetwork) == 0 ? 1 : 0
-  name          = "my-subnetwork"
-  ip_cidr_range = "10.0.0.0/16"
-  network       = length(data.google_compute_network.existing_network) > 0 ? data.google_compute_network.existing_network.id : google_compute_network.vpc_network[0].id
+# Subnet
+resource "google_compute_subnetwork" "subnet" {
+  name          = "my-subnet"
+  ip_cidr_range = "10.0.0.0/24"
   region        = var.region
-  project       = var.project_id
+  network       = google_compute_network.vpc_network.id
 }
 
-# Check if the GKE Cluster exists using a data block
-data "google_container_cluster" "existing_cluster" {
-  name     = "gke-cluster"
-  location = var.region
-  project  = var.project_id
-}
-
-# Create GKE Cluster if it doesn't exist
-resource "google_container_cluster" "primary" {
-  count              = length(data.google_container_cluster.existing_cluster) == 0 ? 1 : 0
-  name               = "gke-cluster"
-  location           = var.region
-  initial_node_count = 3
-  network            = length(data.google_compute_network.existing_network) > 0 ? data.google_compute_network.existing_network.id : google_compute_network.vpc_network[0].id
-  subnetwork         = length(data.google_compute_subnetwork.existing_subnetwork) > 0 ? data.google_compute_subnetwork.existing_subnetwork.id : google_compute_subnetwork.subnetwork[0].id
-
-  node_config {
-    machine_type = "e2-medium"
-    oauth_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
-  }
-
-  ip_allocation_policy {
-    cluster_secondary_range_name  = "pods-range"
-    services_secondary_range_name = "services-range"
-  }
-
-  master_auth {
-    client_certificate_config {
-      issue_client_certificate = false
-    }
-  }
-}
-
-# Check if the NAT Router exists using a data block
-data "google_compute_router" "existing_nat_router" {
-  name    = "nat-router"
-  network = length(data.google_compute_network.existing_network) > 0 ? data.google_compute_network.existing_network.name : google_compute_network.vpc_network[0].name
+# NAT Gateway
+resource "google_compute_router" "router" {
+  name    = "my-router"
   region  = var.region
-  project = var.project_id
+  network = google_compute_network.vpc_network.id
 }
 
-# Create NAT Router if it doesn't exist
-resource "google_compute_router" "nat_router" {
-  count   = length(data.google_compute_router.existing_nat_router) == 0 ? 1 : 0
-  name    = "nat-router"
-  network = length(data.google_compute_network.existing_network) > 0 ? data.google_compute_network.existing_network.id : google_compute_network.vpc_network[0].id
-  region  = var.region
-  project = var.project_id
-}
-
-# Create NAT Gateway if it doesn't exist
-resource "google_compute_router_nat" "nat_config" {
-  count                              = length(data.google_compute_router.existing_nat_router) == 0 ? 1 : 0
-  name                               = "nat-config"
-  router                             = google_compute_router.nat_router[0].name
+resource "google_compute_router_nat" "nat" {
+  name                               = "my-router-nat"
+  router                             = google_compute_router.router.name
   region                             = var.region
   nat_ip_allocate_option             = "AUTO_ONLY"
   source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
-  project                            = var.project_id
 }
 
-# Kubernetes Namespace
-resource "kubernetes_namespace" "default" {
-  metadata {
-    name = "shortlet-namespace"
+# Firewall rule
+resource "google_compute_firewall" "allow_http" {
+  name    = "allow-http"
+  network = google_compute_network.vpc_network.name
+
+  allow {
+    protocol = "tcp"
+    ports    = ["80"]
+  }
+
+  source_ranges = ["0.0.0.0/0"]
+}
+
+# GKE Cluster
+resource "google_container_cluster" "primary" {
+  name     = "gke-cluster"
+  location = var.region
+
+  remove_default_node_pool = true
+  initial_node_count       = 1
+
+  network    = google_compute_network.vpc_network.name
+  subnetwork = google_compute_subnetwork.subnet.name
+}
+
+resource "google_container_node_pool" "primary_nodes" {
+  name       = "my-node-pool"
+  location   = var.region
+  cluster    = google_container_cluster.primary.name
+  node_count = 1
+
+  node_config {
+    preemptible  = true
+    machine_type = "e2-medium"
+
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform"
+    ]
   }
 }
 
-# Kubernetes Deployment
+# Kubernetes resources
+resource "kubernetes_namespace" "api_namespace" {
+  metadata {
+    name = "api-namespace"
+  }
+}
+
 resource "kubernetes_deployment" "api_deployment" {
   metadata {
     name      = "api-deployment"
-    namespace = kubernetes_namespace.default.metadata[0].name
+    namespace = kubernetes_namespace.api_namespace.metadata[0].name
   }
 
   spec {
-    replicas = 3
+    replicas = 2
 
     selector {
       match_labels = {
@@ -146,16 +116,15 @@ resource "kubernetes_deployment" "api_deployment" {
   }
 }
 
-# Kubernetes Service
 resource "kubernetes_service" "api_service" {
   metadata {
     name      = "api-service"
-    namespace = kubernetes_namespace.default.metadata[0].name
+    namespace = kubernetes_namespace.api_namespace.metadata[0].name
   }
 
   spec {
     selector = {
-      app = "api"
+      app = kubernetes_deployment.api_deployment.spec[0].template[0].metadata[0].labels.app
     }
 
     port {
