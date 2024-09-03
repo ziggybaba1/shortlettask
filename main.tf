@@ -30,27 +30,6 @@ resource "google_compute_subnetwork" "subnetwork" {
   region        = var.region
 }
 
-# Check if the GKE Cluster already exists using a data block
-data "google_container_cluster" "existing_cluster" {
-  name     = "gke-cluster"
-  location = var.region
-}
-
-# Create GKE Cluster if it doesn't exist
-resource "google_container_cluster" "primary" {
-  count              = length(data.google_container_cluster.existing_cluster.id) == 0 ? 1 : 0
-  name               = "gke-cluster"
-  location           = var.region
-  initial_node_count = 3
-
-  network    = "my-vpc"
-  subnetwork = "my-subnetwork"
-
-  node_config {
-    machine_type = "e2-medium"
-    oauth_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
-  }
-}
 
 # NAT Gateway Setup if it doesn't exist
 data "google_compute_router" "existing_nat_router" {
