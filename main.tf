@@ -57,27 +57,23 @@ resource "google_compute_router_nat" "nat" {
   depends_on = [google_compute_router.router]
 }
 
-#
-
 # Define GKE Cluster
 resource "google_container_cluster" "primary" {
   count                   = local.network_exists ? 0 : 1
-  name             = "shortlet-cluster"
-  location         = var.region
-  initial_node_count = 3
-  network    = google_compute_network.vpc_network[0].id
-  
-  subnetwork = google_compute_subnetwork.subnet[0].id
+  name                    = "shortlet-cluster"
+  location                = var.region
+  initial_node_count      = 3
+  network                 = google_compute_network.vpc_network[0].id
+  subnetwork              = google_compute_subnetwork.subnet[0].id
 
   depends_on = [google_compute_network.vpc_network]
 }
 
 # Define GKE Node Pool with adjustments
 resource "google_container_node_pool" "primary_nodes" {
-  
   name       = "shortlet-pool"
   location   = var.region
-  cluster    = google_container_cluster.primary.name
+  cluster    = google_container_cluster.primary[0].name
   node_count = 1
 
   node_config {
@@ -97,20 +93,20 @@ resource "google_container_node_pool" "primary_nodes" {
 
 # Configure Kubernetes Providers
 provider "kubernetes" {
-  host                   = "https://${google_container_cluster.primary.endpoint}"
+  host                   = "https://${google_container_cluster.primary[0].endpoint}"
   token                  = data.google_client_config.default.access_token
-  cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
+  cluster_ca_certificate = base64decode(google_container_cluster.primary[0].master_auth[0].cluster_ca_certificate)
 }
 
 provider "helm" {
   kubernetes {
-    host                   = "https://${google_container_cluster.primary.endpoint}"
+    host                   = "https://${google_container_cluster.primary[0].endpoint}"
     token                  = data.google_client_config.default.access_token
-    cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
+    cluster_ca_certificate = base64decode(google_container_cluster.primary[0].master_auth[0].cluster_ca_certificate)
   }
 }
 
-# Kubernetes Resources (consider separate files for complex deployments)
+# Kubernetes Resources
 resource "kubernetes_namespace" "api_namespace" {
   metadata {
     name = "api-namespace"
@@ -174,13 +170,13 @@ resource "kubernetes_service" "api_service" {
   }
 }
 
-# Deploy Helm Charts with updated versions
+# Deploy Helm Charts
 resource "helm_release" "grafana" {
   name       = "grafana"
   repository = "https://grafana.github.io/helm-charts"
   chart      = "grafana"
   namespace  = "monitoring"
-  version    = "6.50.7"  # Update to the latest stable version
+  version    = "6.50.7"
 
   set {
     name  = "adminPassword"
@@ -195,7 +191,7 @@ resource "helm_release" "prometheus" {
   repository = "https://prometheus-community.github.io/helm-charts"
   chart      = "prometheus"
   namespace  = "monitoring"
-  version    = "15.10.1"  # Update to the latest stable version
+  version    = "15.10.1"
 
   depends_on = [google_container_cluster.primary, kubernetes_namespace.api_namespace]
 }
