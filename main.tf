@@ -42,7 +42,7 @@ resource "google_compute_router_nat" "nat" {
 
 # Define GKE Cluster
 resource "google_container_cluster" "primary" {
-  name             = "my-gke-cluster"
+  name             = "shortlet-cluster"
   location         = var.region
   initial_node_count = 3
   network    = google_compute_network.vpc_network.id
@@ -52,7 +52,7 @@ resource "google_container_cluster" "primary" {
 # Define GKE Node Pool with adjustments
 resource "google_container_node_pool" "primary_nodes" {
   
-  name       = "my-node-pool"
+  name       = "shortlet-pool"
   location   = var.region
   cluster    = google_container_cluster.primary.name
   node_count = 1

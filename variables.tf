@@ -1,11 +1,11 @@
 variable "project_id" {
   description = "sixth-syntax-434405-p0"
-  default="us-east1"
+  default="sixth-syntax-434405-p0"
 }
 
 variable "region" {
-  description = "us-east1"
-  default     = "us-east1"
+  description = "us-west1"
+  default     = "us-west1"
 }
 
 variable "docker_hub_username" {

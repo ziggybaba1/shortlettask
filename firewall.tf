@@ -1,6 +1,6 @@
 #  Define Firewall Rule (allow only HTTP)
 resource "google_compute_firewall" "allow_http" {
-  name    = "allow-http"
+  name    = "shortlet-allow-http"
   network = google_compute_network.vpc_network.id
 
   allow {
