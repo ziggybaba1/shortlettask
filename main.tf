@@ -69,24 +69,24 @@ resource "google_container_node_pool" "primary_nodes" {
 }
 
 # Ensure Kubernetes provider depends on the GKE cluster creation
-provider "kubernetes" {
-  host                   = "https://${google_container_cluster.primary.endpoint}"
-  token                  = data.google_client_config.default.access_token
-  cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
+# provider "kubernetes" {
+#   host                   = "https://${google_container_cluster.primary.endpoint}"
+#   token                  = data.google_client_config.default.access_token
+#   cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
 
-  depends_on = [google_container_cluster.primary]
-}
+#   depends_on = [google_container_cluster.primary]
+# }
 
-# Ensure Helm provider depends on the GKE cluster creation
-provider "helm" {
-  kubernetes {
-    host                   = "https://${google_container_cluster.primary.endpoint}"
-    token                  = data.google_client_config.default.access_token
-    cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
-  }
+# # Ensure Helm provider depends on the GKE cluster creation
+# provider "helm" {
+#   kubernetes {
+#     host                   = "https://${google_container_cluster.primary.endpoint}"
+#     token                  = data.google_client_config.default.access_token
+#     cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
+#   }
 
-  depends_on = [google_container_cluster.primary]
-}
+#   depends_on = [google_container_cluster.primary]
+# }
 
 
 # Kubernetes Resources
