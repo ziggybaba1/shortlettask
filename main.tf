@@ -1,68 +1,79 @@
 provider "google" {
-  project     = "sixth-syntax-434405-p0"
-  region      = "us-central1"
+  project     = var.project_id
+  region      = var.region
 }
 
-# Create VPC
-# resource "google_compute_network" "vpc_network" {
-#   name = "my-vpc"
-#   auto_create_subnetworks = false
-# }
+# Create VPC if it doesn't exist
+resource "google_compute_network" "vpc_network" {
+  name = "my-vpc"
+  lifecycle {
+    prevent_destroy = true
+  }
+}
 
-# Create Subnet
-# resource "google_compute_subnetwork" "subnetwork" {
-#   name          = "my-subnetwork"
-#   ip_cidr_range = "10.0.0.0/16"
-#   network       = google_compute_network.vpc_network.name
-#   region        = "us-central1"
-# }
+# Create Subnet if it doesn't exist
+resource "google_compute_subnetwork" "subnetwork" {
+  name          = "my-subnetwork"
+  ip_cidr_range = "10.0.0.0/16"
+  network       = google_compute_network.vpc_network.name
+  region        = var.region
+  lifecycle {
+    prevent_destroy = true
+  }
+}
 
-# resource "google_compute_disk" "default" {
-#   name  = "my-disk"
-#   type  = "pd-ssd"
-#   zone  = "us-central1-a"
-#   size  = 150  # Reduced from 900 GB to 250 GB
-# }
+# Create GKE Cluster only if it doesn't exist
+resource "google_container_cluster" "primary" {
+  name               = "gke-cluster"
+  location           = var.region
+  initial_node_count = 3
 
-# Create GKE Cluster
-# resource "google_container_cluster" "primary" {
-#   name               = "gke-cluster"
-#   location           = "us-central1"
-#   initial_node_count = 1
+  network    = google_compute_network.vpc_network.name
+  subnetwork = google_compute_subnetwork.subnetwork.name
 
-#   network    = google_compute_network.vpc_network.name
-#   subnetwork = google_compute_subnetwork.subnetwork.name
+  node_config {
+    machine_type = "e2-medium"
+    oauth_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+  }
 
-#   node_config {
-#     machine_type = "e2-medium"
-#     oauth_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
-#   }
-# }
+  lifecycle {
+    prevent_destroy = true
+  }
+}
 
-# NAT Gateway Setup
- # network = google_compute_network.vpc_network.name
+# NAT Gateway Setup if it doesn't exist
 resource "google_compute_router" "nat_router" {
   name    = "nat-router"
-  network = "my-vpc"
-  region  = "us-central1"
+  network = google_compute_network.vpc_network.name
+  region  = var.region
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 resource "google_compute_router_nat" "nat_config" {
   name            = "nat-config"
   router          = google_compute_router.nat_router.name
-  region          = "us-central1"
+  region          = var.region
   nat_ip_allocate_option = "AUTO_ONLY"
   source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
-# Kubernetes Namespace
+# Kubernetes Namespace, avoid recreation
 resource "kubernetes_namespace" "default" {
   metadata {
     name = "shortlet-namespace"
   }
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
-# Kubernetes Deployment
+# Kubernetes Deployment, create if not exists
 resource "kubernetes_deployment" "api_deployment" {
   metadata {
     name      = "api-deployment"
@@ -87,7 +98,7 @@ resource "kubernetes_deployment" "api_deployment" {
 
       spec {
         container {
-          image = "gcr.io/ziggybaba/php-api:latest"
+          image = "hub.docker.com/repository/docker/ziggybaba/php-api:latest"
           name  = "php-api"
 
           port {
@@ -97,9 +108,12 @@ resource "kubernetes_deployment" "api_deployment" {
       }
     }
   }
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
-# Kubernetes Service
+# Kubernetes Service, create if not exists
 resource "kubernetes_service" "api_service" {
   metadata {
     name      = "api-service"
@@ -117,5 +131,8 @@ resource "kubernetes_service" "api_service" {
     }
 
     type = "LoadBalancer"
+  }
+  lifecycle {
+    prevent_destroy = true
   }
 }

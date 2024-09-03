@@ -1,4 +1,4 @@
-# Grafana Helm Chart Installation
+# Grafana Helm Chart Installation if it doesn't exist
 resource "helm_release" "grafana" {
   name       = "grafana"
   repository = "https://grafana.github.io/helm-charts"
@@ -8,5 +8,9 @@ resource "helm_release" "grafana" {
   set {
     name  = "adminPassword"
     value = "admin"
+  }
+
+  lifecycle {
+    prevent_destroy = true
   }
 }

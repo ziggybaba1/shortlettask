@@ -1,6 +1,6 @@
 output "kubernetes_cluster_name" {
   description = "The name of the Kubernetes cluster"
-  value       = "sixth-syntax-434405-p0"
+  value       = google_container_cluster.primary.name
 }
 
 output "api_endpoint" {

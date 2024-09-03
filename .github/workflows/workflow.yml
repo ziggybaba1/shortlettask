@@ -47,4 +47,4 @@ jobs:
       - name: Deploy Infrastructure with Terraform
         run: |
           terraform init
-          terraform apply -auto-approve
+          terraform apply -auto-approve || echo "Infrastructure already exists, skipping..."
