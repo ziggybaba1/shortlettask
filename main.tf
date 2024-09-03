@@ -40,9 +40,10 @@ resource "google_compute_firewall" "allow_http" {
 
 # GKE Cluster Creation
 resource "google_container_cluster" "primary" {
+   count = local.network_exists ? 0 : 1
   name     = "shortlet-cluster"
   location = var.region
-  network  = google_compute_network.vpc_network.id
+  network  = google_compute_network.vpc_network[0].id
   initial_node_count = 3
 
   # Ensure the cluster is created before referencing it
