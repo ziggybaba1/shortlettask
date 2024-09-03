@@ -31,7 +31,7 @@ resource "google_compute_subnetwork" "subnet" {
   name          = "shortlet-subnet"
   ip_cidr_range = "10.0.0.0/24"
   region        = var.region
-  network       = google_compute_network.vpc_network[count.index].id
+  network       = google_compute_network.vpc_network[0].id
   project       = var.project_id
 
   depends_on = [google_compute_network.vpc_network]
@@ -42,7 +42,7 @@ resource "google_compute_router" "router" {
   count                   = local.network_exists ? 0 : 1
   name    = "shortlet-router"
   region  = var.region
-  network = google_compute_network.vpc_network[count.index].id
+  network = google_compute_network.vpc_network[0].id
 
   depends_on = [google_compute_network.vpc_network]
 }
@@ -65,7 +65,7 @@ resource "google_container_cluster" "primary" {
   name             = "shortlet-cluster"
   location         = var.region
   initial_node_count = 3
-  network    = google_compute_network.vpc_network[count.index].id
+  network    = google_compute_network.vpc_network[0].id
   subnetwork = google_compute_subnetwork.subnet.id
 
   depends_on = [google_compute_network.vpc_network]
