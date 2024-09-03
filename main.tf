@@ -75,6 +75,56 @@ resource "google_compute_router_nat" "nat_config" {
   source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
 }
 
+# Check if the GKE Cluster already exists using a data block
+data "google_container_cluster" "existing_cluster" {
+  name     = "gke-cluster"
+  location = var.region
+}
+
+# Create GKE Cluster if it doesn't exist
+resource "google_container_cluster" "primary" {
+  count              = length(data.google_container_cluster.existing_cluster.id) == 0 ? 1 : 0
+  name               = "gke-cluster"
+  location           = var.region
+  initial_node_count = 3
+  network            = google_compute_network.vpc_network.self_link
+  subnetwork         = google_compute_subnetwork.subnetwork.self_link
+
+  node_config {
+    machine_type = "e2-medium"
+    oauth_scopes = ["https://www.googleapis.com/auth/cloud-platform"]
+  }
+
+  ip_allocation_policy {
+    cluster_secondary_range_name  = "pods-range"
+    services_secondary_range_name = "services-range"
+  }
+
+  # master_auth {
+  #   username = ""
+  #   password = ""
+  #   client_certificate_config {
+  #     issue_client_certificate = false
+  #   }
+  # }
+}
+
+# Create a node pool for the GKE cluster
+resource "google_container_node_pool" "primary_nodes" {
+  count     = length(data.google_container_cluster.existing_cluster.id) == 0 ? 1 : 0
+  cluster   = google_container_cluster.primary[0].name
+  location  = var.region
+  name      = "primary-node-pool"
+  node_count = 3
+
+  node_config {
+    machine_type = "e2-medium"
+    oauth_scopes = [
+      "https://www.googleapis.com/auth/cloud-platform",
+    ]
+  }
+}
+
 # Kubernetes Namespace, avoid recreation
 resource "kubernetes_namespace" "default" {
   metadata {
