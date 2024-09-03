@@ -4,10 +4,10 @@ provider "google" {
 }
 
 # Create VPC
-resource "google_compute_network" "vpc_network" {
-  name = "my-vpc"
-  auto_create_subnetworks = false
-}
+# resource "google_compute_network" "vpc_network" {
+#   name = "my-vpc"
+#   auto_create_subnetworks = false
+# }
 
 # Create Subnet
 # resource "google_compute_subnetwork" "subnetwork" {
@@ -40,9 +40,10 @@ resource "google_compute_network" "vpc_network" {
 # }
 
 # NAT Gateway Setup
+ # network = google_compute_network.vpc_network.name
 resource "google_compute_router" "nat_router" {
   name    = "nat-router"
-  network = google_compute_network.vpc_network.name
+  network = "my-vpc"
   region  = "us-central1"
 }
 
