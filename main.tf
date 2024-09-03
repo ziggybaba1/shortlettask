@@ -38,14 +38,14 @@ resource "google_compute_firewall" "allow_http" {
   depends_on = [google_compute_network.vpc_network]
 }
 
-# GKE Cluster creation
+# GKE Cluster Creation
 resource "google_container_cluster" "primary" {
-  count = local.network_exists ? 0 : 1  # Only create if the network exists
-  name  = "shortlet-cluster"
+  name     = "shortlet-cluster"
   location = var.region
-  network  = google_compute_network.vpc_network[0].id
+  network  = google_compute_network.vpc_network.id
   initial_node_count = 3
 
+  # Ensure the cluster is created before referencing it
   depends_on = [google_compute_network.vpc_network]
 }
 
@@ -70,22 +70,22 @@ resource "google_container_node_pool" "primary_nodes" {
 
 # Ensure Kubernetes provider depends on the GKE cluster creation
 provider "kubernetes" {
-  host                   = "https://${google_container_cluster.primary[0].endpoint}"
+  host                   = "https://${google_container_cluster.primary.endpoint}"
   token                  = data.google_client_config.default.access_token
-  cluster_ca_certificate = base64decode(google_container_cluster.primary[0].master_auth[0].cluster_ca_certificate)
+  cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
 
-  # depends_on = [google_container_cluster.primary]
+  depends_on = [google_container_cluster.primary]
 }
 
 # Ensure Helm provider depends on the GKE cluster creation
 provider "helm" {
   kubernetes {
-    host                   = "https://${google_container_cluster.primary[0].endpoint}"
+    host                   = "https://${google_container_cluster.primary.endpoint}"
     token                  = data.google_client_config.default.access_token
-    cluster_ca_certificate = base64decode(google_container_cluster.primary[0].master_auth[0].cluster_ca_certificate)
+    cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
   }
 
-  # depends_on = [google_container_cluster.primary]
+  depends_on = [google_container_cluster.primary]
 }
 
 
