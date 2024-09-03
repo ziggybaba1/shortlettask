@@ -19,41 +19,49 @@ provider "helm" {
   }
 }
 
-data "google_compute_network" "existing_network" {
+data "google_compute_network" "existing_vpc_network" {
   name    = "my-vpc-network"
   project = var.project_id
 }
 
 resource "google_compute_network" "vpc_network" {
-  count                   = data.google_compute_network.existing_network.id == null ? 1 : 0
+  count                   = data.google_compute_network.existing_vpc_network.id == null ? 1 : 0
   name                    = "my-vpc-network"
   auto_create_subnetworks = false
   project                 = var.project_id
 }
 
 locals {
-  network_id = data.google_compute_network.existing_network.id != null ? data.google_compute_network.existing_network.id : google_compute_network.vpc_network[0].id
+  network_id = data.google_compute_network.existing_vpc_network.id != null ? data.google_compute_network.existing_vpc_network.id : google_compute_network.vpc_network[0].id
+}
+
+data "google_compute_subnetwork" "existing_subnet" {
+  name    = "my-subnet"
+  project = var.project_id
+  region  = var.region
 }
 
 # Subnet
 resource "google_compute_subnetwork" "subnet" {
- name          = "my-subnet"
+  count = length(data.google_compute_subnetwork.existing_subnet.*.name) == 0 ? 1 : 0
+  name          = "my-subnet"
   ip_cidr_range = "10.0.0.0/24"
   region        = var.region
-  network       = google_compute_network.vpc_network.id
+  network       = google_compute_network.vpc_network[count.index].id
   project       = var.project_id
 }
 
 # NAT Gateway
 resource "google_compute_router" "router" {
+  count = length(data.google_compute_network.existing_vpc_network.*.name) == 0 ? 1 : 0
   name    = "my-router"
   region  = var.region
-  network = google_compute_network.vpc_network.id
+  network = google_compute_network.vpc_network[count.index].id
 }
 
 resource "google_compute_router_nat" "nat" {
   name                               = "my-router-nat"
-  router                             = google_compute_router.router.name
+  router                             = google_compute_router.router[count.index].name
   region                             = var.region
   nat_ip_allocate_option             = "AUTO_ONLY"
   source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
@@ -61,8 +69,9 @@ resource "google_compute_router_nat" "nat" {
 
 # Firewall rule
 resource "google_compute_firewall" "allow_http" {
+  count = length(data.google_compute_network.existing_vpc_network.*.name) == 0 ? 1 : 0
   name    = "allow-http"
-  network = google_compute_network.vpc_network.name
+  network = google_compute_network.vpc_network[count.index].id
 
   allow {
     protocol = "tcp"
@@ -80,19 +89,20 @@ data "google_container_cluster" "existing_cluster" {
 
 # Use a conditional expression to create the cluster only if it doesn't exist
 resource "google_container_cluster" "primary" {
-  count    = length(data.google_container_cluster.existing_cluster.*.name) == 0 ? 1 : 0
-  name     = "my-gke-cluster"
-  location = var.region
+  count            = length(data.google_container_cluster.existing_cluster.*.name) == 0 ? 1 : 0
+  name             = "my-gke-cluster"
+  location         = var.region
   initial_node_count = 3
 
-  network    = google_compute_network.vpc_network.name
-  subnetwork = google_compute_subnetwork.subnet.name
+  network    = google_compute_network.vpc_network[count.index].name
+  subnetwork = google_compute_subnetwork.subnet[count.index].name
 }
 
 resource "google_container_node_pool" "primary_nodes" {
+  count      = google_container_cluster.primary.count
   name       = "my-node-pool"
   location   = var.region
-  cluster    = google_container_cluster.primary.name
+  cluster    = google_container_cluster.primary[count.index].name
   node_count = 1
 
   node_config {
