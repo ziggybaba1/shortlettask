@@ -3,6 +3,22 @@ provider "google" {
   region  = var.region
 }
 
+data "google_client_config" "default" {}
+
+provider "kubernetes" {
+  host                   = "https://${google_container_cluster.primary.endpoint}"
+  token                  = data.google_client_config.default.access_token
+  cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
+}
+
+provider "helm" {
+  kubernetes {
+    host                   = "https://${google_container_cluster.primary.endpoint}"
+    token                  = data.google_client_config.default.access_token
+    cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
+  }
+}
+
 # VPC Network
 resource "google_compute_network" "vpc_network" {
   name                    = "my-vpc-network"
@@ -66,10 +82,15 @@ resource "google_container_node_pool" "primary_nodes" {
   node_config {
     preemptible  = true
     machine_type = "e2-medium"
-    tags = ["web-server"]
+
+    disk_size_gb = 50  # Reduced from default 100GB
+    disk_type    = "pd-standard"  # Changed from SSD to standard persistent disk
+
     oauth_scopes = [
       "https://www.googleapis.com/auth/cloud-platform"
     ]
+
+    tags = ["web-server"]
   }
 }
 
@@ -78,6 +99,7 @@ resource "kubernetes_namespace" "api_namespace" {
   metadata {
     name = "api-namespace"
   }
+  depends_on = [google_container_cluster.primary]
 }
 
 resource "kubernetes_deployment" "api_deployment" {
@@ -136,24 +158,27 @@ resource "kubernetes_service" "api_service" {
   }
 }
 
-# Helm Release for Grafana
 resource "helm_release" "grafana" {
   name       = "grafana"
-  chart      = "grafana"
   repository = "https://grafana.github.io/helm-charts"
+  chart      = "grafana"
   namespace  = "monitoring"
-  version    = "6.16.10"
+  version    = "6.50.7"  # Update to the latest stable version
+
   set {
     name  = "adminPassword"
     value = "admin"
   }
+
+  depends_on = [google_container_cluster.primary, kubernetes_namespace.api_namespace]
 }
 
-# Helm Release for Prometheus
 resource "helm_release" "prometheus" {
   name       = "prometheus"
-  chart      = "prometheus"
   repository = "https://prometheus-community.github.io/helm-charts"
+  chart      = "prometheus"
   namespace  = "monitoring"
-  version    = "14.11.1"
+  version    = "15.10.1"  # Update to the latest stable version
+
+  depends_on = [google_container_cluster.primary, kubernetes_namespace.api_namespace]
 }
