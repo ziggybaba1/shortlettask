@@ -1,6 +1,7 @@
 resource "google_compute_firewall" "no_ssh" {
-  name    = "no-ssh"
-  network = google_compute_network.vpc_network.name
+  count = length(google_compute_network.vpc_network) > 0 ? 1 : 0
+  name  = "no-ssh"
+  network = google_compute_network.vpc_network[0].id
 
   allow {
     protocol = "tcp"
