@@ -31,7 +31,7 @@ resource "google_compute_subnetwork" "subnet" {
   name          = "shortlet-subnet"
   ip_cidr_range = "10.0.0.0/24"
   region        = var.region
-  network       = google_compute_network.vpc_network[count].id
+  network       = google_compute_network.vpc_network[count.index].id
   project       = var.project_id
 
   depends_on = [google_compute_network.vpc_network]
@@ -39,9 +39,9 @@ resource "google_compute_subnetwork" "subnet" {
 
 # Check if VPC Network already exists
 data "google_compute_router" "existing_router" {
-  count                   = local.network_exists ? 0 : 1
-  name = "shortlet-router"
-  network = google_compute_network.vpc_network[count].id
+  count = local.network_exists ? 0 : 1
+  name  = "shortlet-router"
+  network = google_compute_network.vpc_network[count.index].id
 }
 
 # Define local variable for conditional creation
@@ -52,18 +52,18 @@ locals {
 # Define Router and NAT Gateway (explicit creation)
 resource "google_compute_router" "router" {
   count = local.network_exists ? 0 : 1
-  name = "shortlet-router"
+  name  = "shortlet-router"
   region = var.region
-  network = google_compute_network.vpc_network[count].id
+  network = google_compute_network.vpc_network[count.index].id
   depends_on = [google_compute_network.vpc_network]
 }
 
 resource "google_compute_router_nat" "nat" {
   count                   = local.router_exists ? 0 : 1
-  name                               = "shortlet-router-nat"
-  router                             = google_compute_router.router[count].name
-  region                             = var.region
-  nat_ip_allocate_option             = "AUTO_ONLY"
+  name                    = "shortlet-router-nat"
+  router                  = google_compute_router.router[count.index].name
+  region                  = var.region
+  nat_ip_allocate_option  = "AUTO_ONLY"
   source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
 
   depends_on = [google_compute_router.router]
@@ -75,17 +75,18 @@ resource "google_container_cluster" "primary" {
   name                    = "shortlet-cluster"
   location                = var.region
   initial_node_count      = 3
-  network                 = google_compute_network.vpc_network[count].id
-  subnetwork              = google_compute_subnetwork.subnet[count].id
+  network                 = google_compute_network.vpc_network[count.index].id
+  subnetwork              = google_compute_subnetwork.subnet[count.index].id
 
   depends_on = [google_compute_network.vpc_network]
 }
 
 # Define GKE Node Pool with adjustments
 resource "google_container_node_pool" "primary_nodes" {
-  name       = "shortlet-pool"
-  location   = var.region
-  cluster    = google_container_cluster.primary[0].name
+  count     = local.network_exists ? 0 : 1
+  name      = "shortlet-pool"
+  location  = var.region
+  cluster   = google_container_cluster.primary[count.index].name
   node_count = 1
 
   node_config {
@@ -101,20 +102,22 @@ resource "google_container_node_pool" "primary_nodes" {
 
     tags = ["web-server"]
   }
+
+  depends_on = [google_container_cluster.primary]
 }
 
 # Configure Kubernetes Providers
 provider "kubernetes" {
-  host                   = "https://${google_container_cluster.primary[0].endpoint}"
+  host                   = "https://${google_container_cluster.primary[count.index].endpoint}"
   token                  = data.google_client_config.default.access_token
-  cluster_ca_certificate = base64decode(google_container_cluster.primary[0].master_auth[0].cluster_ca_certificate)
+  cluster_ca_certificate = base64decode(google_container_cluster.primary[count.index].master_auth[0].cluster_ca_certificate)
 }
 
 provider "helm" {
   kubernetes {
-    host                   = "https://${google_container_cluster.primary[0].endpoint}"
+    host                   = "https://${google_container_cluster.primary[count.index].endpoint}"
     token                  = data.google_client_config.default.access_token
-    cluster_ca_certificate = base64decode(google_container_cluster.primary[0].master_auth[0].cluster_ca_certificate)
+    cluster_ca_certificate = base64decode(google_container_cluster.primary[count.index].master_auth[0].cluster_ca_certificate)
   }
 }
 
