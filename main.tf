@@ -9,14 +9,14 @@ data "google_client_config" "default" {}
 
 # Define VPC Network (explicit creation)
 resource "google_compute_network" "vpc_network" {
-  name                    = "my-vpc-network"
+  name                    = "shortlet-vpc-network"
   auto_create_subnetworks = false
   project                 = var.project_id
 }
 
 # Define Subnet (explicit creation)
 resource "google_compute_subnetwork" "subnet" {
-  name          = "my-subnet"
+  name          = "shortlet-subnet"
   ip_cidr_range = "10.0.0.0/24"
   region        = var.region
   network       = google_compute_network.vpc_network.id
@@ -25,13 +25,13 @@ resource "google_compute_subnetwork" "subnet" {
 
 # Define Router and NAT Gateway (explicit creation)
 resource "google_compute_router" "router" {
-  name    = "my-router"
+  name    = "shortlet-router"
   region  = var.region
   network = google_compute_network.vpc_network.id
 }
 
 resource "google_compute_router_nat" "nat" {
-  name                               = "my-router-nat"
+  name                               = "shortlet-router-nat"
   router                             = google_compute_router.router.name
   region                             = var.region
   nat_ip_allocate_option             = "AUTO_ONLY"
