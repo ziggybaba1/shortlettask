@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: shortlet-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: shortlet-service
+  template:
+    metadata:
+      labels:
+        app: shortlet-service
+    spec:
+      containers:
+        - name: auth-service
+          image: ziggybaba/php-api:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+          

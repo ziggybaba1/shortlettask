@@ -6,8 +6,47 @@ on:
       - main
 
 jobs:
-  deploy:
+  create-image-and-push-to-dockerhub:
+    name: Create Image and Push to Dockerhub
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Set up Docker Compose
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y docker-compose
+        continue-on-error: true
+      
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Use Node.js 20
+        uses: actions/setup-node@v2
+        with:
+          node-version: "20"
+      - name: Log in to Docker Hub
+        run: |
+          docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_TOKEN }}
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
+      
+      - name: Build Docker images
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+        run: |
+          docker-compose -f docker-compose.yml build
+          docker-compose -f docker-compose.yml push
+        working-directory: .
+
+  deploy:
+    needs: [create-image-and-push-to-dockerhub]
+    name: Setup and Deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: "read"
+      id-token: "write"
     steps:
       - name: Checkout Code
         uses: actions/checkout@v2
@@ -16,34 +55,19 @@ jobs:
         uses: google-github-actions/auth@v1
         with:
           credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+      - name: Get GKE Credentials
+        uses: google-github-actions/get-gke-credentials@v1
+        with:
+          cluster_name: ${{ secrets.GKE_DEV_CLUSTER_NAME }}
+          location: ${{ secrets.GKE_DEV_CLUSTER_ZONE }}
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
 
       - name: Set up Google Cloud SDK
         uses: google-github-actions/setup-gcloud@v1
         with:
           project_id: ${{ secrets.GCP_PROJECT_ID }}
           
-      - name: Set up Docker Compose
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y docker-compose
-        continue-on-error: true
-
-      - name: Log in to Docker Hub
-        run: |
-          docker login -u ${{ secrets.DOCKER_USERNAME }} -p ${{ secrets.DOCKER_TOKEN }}
-        env:
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
-
-      - name: Build & Push Docker images
-        env:
-          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
-        run: |
-          docker-compose -f docker-compose.yml build
-          docker-compose -f docker-compose.yml push
-        working-directory: .
-
       - name: Deploy Infrastructure with Terraform
         run: |
           terraform init
@@ -51,3 +75,11 @@ jobs:
           terraform import google_compute_subnetwork.subnet projects/sixth-syntax-434405-p0/regions/us-west1/subnetworks/shortlet-subnet
           terraform plan
           terraform apply -auto-approve || echo "Infrastructure already exists, skipping..."
+
+      - name: Deploy on the GKE
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          CT_TYPE: "api"
+        run: |-
+          kubectl apply -f app/deployment.yaml
+          kubectl apply -f app/service.yaml
