@@ -34,8 +34,12 @@ resource "google_compute_subnetwork" "subnet" {
   ip_cidr_range = "10.10.0.0/24"
 }
 
+data "google_container_cluster" "existing_primary" {
+  name = "${var.project_name}-cluster"
+}
 # GKE cluster
 resource "google_container_cluster" "primary" {
+  count = length(data.google_container_cluster.existing_primary.*.name) == 0 ? 1
   name     = "${var.project_name}-cluster"
   location = var.region
   
