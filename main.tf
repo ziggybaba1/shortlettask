@@ -46,6 +46,7 @@ resource "google_compute_subnetwork" "subnet" {
 
 data "google_container_cluster" "existing_primary" {
   name = "${var.project_name}-cluster"
+  location = var.region
 }
 # GKE cluster
 resource "google_container_cluster" "primary" {
