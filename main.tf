@@ -38,7 +38,7 @@ resource "google_compute_subnetwork" "subnet" {
 provider "kubernetes" {
   host                   = google_container_cluster.primary[0].endpoint
   token                  = data.google_client_config.default.access_token
-  cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
+  cluster_ca_certificate = base64decode(google_container_cluster.primary[0].master_auth[0].cluster_ca_certificate)
 
 }
 
