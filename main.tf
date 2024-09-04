@@ -55,6 +55,7 @@ resource "google_container_cluster" "primary" {
 
 # Separately Managed Node Pool
 resource "google_container_node_pool" "primary_nodes" {
+  count = length(data.google_container_cluster.existing_primary.*.name) == 0 ? 1:0
   name       = "${var.project_name}-pool"
   location   = var.region
   cluster    = google_container_cluster.primary.name
