@@ -47,8 +47,7 @@ jobs:
       - name: Deploy Infrastructure with Terraform
         run: |
           terraform init
-          # terraform import google_compute_network.vpc projects/sixth-syntax-434405-p0/global/networks/shortlet-vpc-network
-          terraform import google_compute_subnetwork.subnet projects/sixth-syntax-434405-p0/regions/us-east1/subnetworks/shortlet-subnet
+         
           terraform import google_container_cluster.primary projects/sixth-syntax-434405-p0/locations/us-west1/clusters/shortlet-cluster
           terraform plan
           terraform apply -auto-approve || echo "Infrastructure already exists, skipping..."
