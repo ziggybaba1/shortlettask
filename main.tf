@@ -20,7 +20,7 @@ resource "google_compute_network" "vpc" {
 resource "google_compute_subnetwork" "subnet" {
   name          = "${var.project_name}-subnet"
   region        = var.region
-  network       = google_compute_network.vpc.name
+  network       = google_compute_network.vpc[0].name
   ip_cidr_range = "10.10.0.0/24"
 }
 
@@ -36,7 +36,7 @@ resource "google_container_cluster" "primary" {
   remove_default_node_pool = true
   initial_node_count       = 1
 
-  network    = google_compute_network.vpc.name
+  network    = google_compute_network.vpc[0].name
   subnetwork = google_compute_subnetwork.subnet.name
 }
 
