@@ -47,7 +47,6 @@ jobs:
       - name: Deploy Infrastructure with Terraform
         run: |
           terraform init
-         
-          terraform import google_container_cluster.primary projects/sixth-syntax-434405-p0/locations/us-west1/clusters/shortlet-cluster
           terraform plan
+          terraform import google_container_cluster.primary projects/sixth-syntax-434405-p0/locations/us-west1/clusters/shortlet-cluster
           terraform apply -auto-approve || echo "Infrastructure already exists, skipping..."
