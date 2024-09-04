@@ -116,7 +116,7 @@ resource "null_resource" "delay" {
 resource "kubernetes_deployment" "api_shortlet" {
  metadata {
     name      = "${var.project_name}"
-    namespace = kubernetes_namespace.kn.metadata.0.name
+    namespace = "${var.project_name}-namespace"
   }
   spec {
     replicas = 1
@@ -147,7 +147,7 @@ resource "kubernetes_deployment" "api_shortlet" {
 resource "kubernetes_service" "api_shortlet_service" {
   metadata {
     name      = "${var.project_name}"
-    namespace = kubernetes_namespace.kn.metadata.0.name
+    namespace = "${var.project_name}-namespace"
   }
   spec {
     selector = {
