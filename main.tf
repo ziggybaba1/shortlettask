@@ -49,7 +49,7 @@ data "google_container_cluster" "existing_primary" {
 }
 # GKE cluster
 resource "google_container_cluster" "primary" {
-  # count = length(data.google_container_cluster.existing_primary.*.name) == 0 ? 1:0
+  count = length(data.google_container_cluster.existing_primary.*.name) == 0 ? 1:0
   name     = "${var.project_name}-cluster"
   location = var.region
   
@@ -65,10 +65,10 @@ resource "google_container_cluster" "primary" {
 
 # Separately Managed Node Pool
 resource "google_container_node_pool" "primary_nodes" {
-  # count = length(data.google_container_cluster.existing_primary.*.name) == 0 ? 1:0
+  count = length(data.google_container_cluster.existing_primary.*.name) == 0 ? 1:0
   name       = "${var.project_name}-pool"
   location   = var.region
-  cluster    = google_container_cluster.primary.name
+  cluster    = google_container_cluster.primary[0].name
   
   autoscaling {
     min_node_count = 1
