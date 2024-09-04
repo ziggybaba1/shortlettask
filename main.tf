@@ -11,7 +11,6 @@ data "google_compute_network" "existing_vpc" {
 }
 # VPC
 resource "google_compute_network" "vpc" {
-  count                   = length(data.google_compute_network.existing_vpc.*.name) == 0 ? 1 : 0
   name                    = "${var.project_name}-vpc-network"
   auto_create_subnetworks = "false"
 }
@@ -20,7 +19,7 @@ resource "google_compute_network" "vpc" {
 resource "google_compute_subnetwork" "subnet" {
   name          = "${var.project_name}-subnet"
   region        = var.region
-  network       = google_compute_network.vpc[0].name
+  network       = google_compute_network.vpc.name
   ip_cidr_range = "10.10.0.0/24"
 }
 
@@ -36,7 +35,7 @@ resource "google_container_cluster" "primary" {
   remove_default_node_pool = true
   initial_node_count       = 1
 
-  network    = google_compute_network.vpc[0].name
+  network    = google_compute_network.vpc.name
   subnetwork = google_compute_subnetwork.subnet.name
 }
 
