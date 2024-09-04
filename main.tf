@@ -93,11 +93,11 @@ resource "google_container_node_pool" "primary_nodes" {
 }
 
 # Kubernetes Provider (moved before GKE cluster)
-provider "kubernetes" {
-  host                   = "https://${google_container_cluster.primary.endpoint}"
-  token                  = data.google_client_config.default.access_token
-  cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
-}
+# provider "kubernetes" {
+#   host                   = "https://${google_container_cluster.primary.endpoint}"
+#   token                  = data.google_client_config.default.access_token
+#   cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
+# }
 
 resource "kubernetes_namespace" "kn" {
   metadata {
