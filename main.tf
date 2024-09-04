@@ -39,7 +39,7 @@ data "google_container_cluster" "existing_primary" {
 }
 # GKE cluster
 resource "google_container_cluster" "primary" {
-  count = length(data.google_container_cluster.existing_primary.*.name) == 0 ? 1
+  count = length(data.google_container_cluster.existing_primary.*.name) == 0 ? 1:0
   name     = "${var.project_name}-cluster"
   location = var.region
   
