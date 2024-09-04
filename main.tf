@@ -23,15 +23,9 @@ resource "google_compute_subnetwork" "subnet" {
   ip_cidr_range = "10.10.0.0/24"
 }
 
-resource "null_resource" "kubernetes_init" {
-  provisioner "local-exec" {
-    command = "echo \"Initializing Kubernetes Provider\""
-  }
-}
-
-
+# Kubernetes Provider (moved before GKE cluster)
 provider "kubernetes" {
-  host                   = google_container_cluster.primary.endpoint
+  host                   = "https://${google_container_cluster.primary.endpoint}"
   token                  = data.google_client_config.default.access_token
   cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)   
 
