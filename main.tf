@@ -26,17 +26,17 @@ resource "google_compute_network" "vpc_network" {
 }
 
 # Ensure the firewall rule depends on the network creation
-resource "google_compute_firewall" "allow_http" {
-  count = local.network_exists ? 0 : 1  # Only create if the network is created
-  name  = "allow-http"
-  network = google_compute_network.vpc_network[0].id
-  allow {
-    protocol = "tcp"
-    ports    = ["80"]
-  }
+# resource "google_compute_firewall" "allow_http" {
+#   count = local.network_exists ? 0 : 1  # Only create if the network is created
+#   name  = "allow-http"
+#   network = google_compute_network.vpc_network[0].id
+#   allow {
+#     protocol = "tcp"
+#     ports    = ["80"]
+#   }
 
-  depends_on = [google_compute_network.vpc_network]
-}
+#   depends_on = [google_compute_network.vpc_network]
+# }
 
 # GKE Cluster Creation
 resource "google_container_cluster" "primary" {
