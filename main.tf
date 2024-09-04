@@ -1,131 +1,105 @@
-# Configure Google Cloud Provider
 provider "google" {
   project = var.project_id
   region  = var.region
 }
 
-# Get default client config
-data "google_client_config" "default" {}
-
-# Check if VPC Network already exists
-data "google_compute_network" "existing_vpc_network" {
-  name = "shortlet-vpc-network"
+# VPC
+resource "google_compute_network" "vpc" {
+  name                    = "${var.project_name}-vpc-network"
+  auto_create_subnetworks = "false"
 }
 
-# Define local variable for conditional creation
-locals {
-  network_exists = length(data.google_compute_network.existing_vpc_network.*.name) > 0
+# Subnet
+resource "google_compute_subnetwork" "subnet" {
+  name          = "${var.project_name}-subnet"
+  region        = var.region
+  network       = google_compute_network.vpc.name
+  ip_cidr_range = "10.10.0.0/24"
 }
 
-# Define VPC Network (explicit creation)
-# Define a conditional VPC creation
-resource "google_compute_network" "vpc_network" {
-  count = local.network_exists ? 0 : 1
-  name  = "shortlet-vpc-network"
-  auto_create_subnetworks = false
-}
 
-# Ensure the firewall rule depends on the network creation
-resource "google_compute_firewall" "allow_http" {
-  count = local.network_exists ? 0 : 1  # Only create if the network is created
-  name  = "allow-http"
-  network = google_compute_network.vpc_network[0].id
-  allow {
-    protocol = "tcp"
-    ports    = ["80"]
-  }
-
-  depends_on = [google_compute_network.vpc_network]
-}
-
-# GKE Cluster Creation
+# GKE cluster
 resource "google_container_cluster" "primary" {
-   count = local.network_exists ? 0 : 1
-  name     = "shortlet-cluster"
+  name     = "${var.project_name}-cluster"
   location = var.region
-  network  = google_compute_network.vpc_network[0].id
-  initial_node_count = 3
+  
+  # We can't create a cluster with no node pool defined, but we want to only use
+  # separately managed node pools. So we create the smallest possible default
+  # node pool and immediately delete it.
+  remove_default_node_pool = true
+  initial_node_count       = 1
 
-  # Ensure the cluster is created before referencing it
-  depends_on = [google_compute_network.vpc_network]
+  network    = google_compute_network.vpc.name
+  subnetwork = google_compute_subnetwork.subnet.name
 }
 
-# Node Pool creation with conditional checks
+# Separately Managed Node Pool
 resource "google_container_node_pool" "primary_nodes" {
-  count = local.network_exists ? 0 : 1  # Only create if the cluster exists
-  name = "shortlet-pool"
-  cluster = google_container_cluster.primary[0].name
-  node_count = 1
+  name       = "${project_name}-pool"
+  location   = var.region
+  cluster    = google_container_cluster.primary.name
+  
+  autoscaling {
+    min_node_count = 1
+    max_node_count = 2
+  }
 
   node_config {
-    machine_type = "e2-small"
-    preemptible  = true
-
     oauth_scopes = [
-      "https://www.googleapis.com/auth/cloud-platform"
+      "https://www.googleapis.com/auth/logging.write",
+      "https://www.googleapis.com/auth/monitoring",
+      "https://www.googleapis.com/auth/devstorage.read_only"
     ]
-  }
 
-  depends_on = [google_container_cluster.primary]
+    labels = {
+      env = var.project_id
+    }
+
+    # preemptible  = true
+    machine_type = "e2-small"
+    disk_size_gb = 50  # Reduced from default 100GB
+    disk_type    = "pd-standard"  # Changed from SSD to standard persistent disk
+    tags         = ["${var.project_name}-node", "${var.project_name}-cluster","web-server"]
+    metadata = {
+      disable-legacy-endpoints = "true"
+    }
+  }
 }
 
-
-# Ensure Kubernetes provider depends on the GKE cluster creation
 provider "kubernetes" {
   host                   = "https://${google_container_cluster.primary.endpoint}"
   token                  = data.google_client_config.default.access_token
   cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
 }
 
-# Ensure Helm provider depends on the GKE cluster creation
-provider "helm" {
-  kubernetes {
-    host                   = "https://${google_container_cluster.primary.endpoint}"
-    token                  = data.google_client_config.default.access_token
-    cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
-  }
-}
-
-resource "null_resource" "dependency" {
-  depends_on = [google_container_cluster.primary]
-}
-
-# Kubernetes Resources
-resource "kubernetes_namespace" "api_namespace" {
+resource "kubernetes_namespace" "kn" {
   metadata {
-    name = "api-namespace"
+    name = "${var.project_name}-namespace"
   }
-  depends_on = [google_container_cluster.primary]
 }
 
-
-resource "kubernetes_deployment" "api_deployment" {
-  metadata {
-    name      = "api-deployment"
-    namespace = kubernetes_namespace.api_namespace.metadata[0].name
+resource "kubernetes_deployment" "api_skaffold" {
+ metadata {
+    name      = "${var.project_name}"
+    namespace = kubernetes_namespace.kn.metadata.0.name
   }
-
   spec {
-    replicas = 2
-
+    replicas = 1
     selector {
       match_labels = {
-        app = "api"
+        app = "${var.project_name}"
       }
     }
-
     template {
       metadata {
         labels = {
-          app = "api"
+          app = "${var.project_name}"
         }
       }
-
       spec {
         container {
           image = "docker.io/${var.docker_hub_username}/php-api:latest"
-          name  = "php-api"
-
+          name  = "${var.project_name}"
           port {
             container_port = 80
           }
@@ -135,48 +109,20 @@ resource "kubernetes_deployment" "api_deployment" {
   }
 }
 
-resource "kubernetes_service" "api_service" {
+resource "kubernetes_service" "api_shortlet_service" {
   metadata {
-    name      = "api-service"
-    namespace = kubernetes_namespace.api_namespace.metadata[0].name
+    name      = "${var.project_name}"
+    namespace = kubernetes_namespace.kn.metadata.0.name
   }
-
   spec {
     selector = {
-      app = kubernetes_deployment.api_deployment.spec[0].template[0].metadata[0].labels.app
+      app = kubernetes_deployment.api_shortlet.spec.0.template.0.metadata.0.labels.app
     }
-
+    type = "LoadBalancer"
     port {
       port        = 80
       target_port = 80
     }
-
-    type = "LoadBalancer"
   }
 }
 
-# Deploy Helm Charts
-resource "helm_release" "grafana" {
-  name       = "grafana"
-  repository = "https://grafana.github.io/helm-charts"
-  chart      = "grafana"
-  namespace  = "monitoring"
-  version    = "6.50.7"
-
-  set {
-    name  = "adminPassword"
-    value = "admin"
-  }
-
-  depends_on = [google_container_cluster.primary, kubernetes_namespace.api_namespace]
-}
-
-resource "helm_release" "prometheus" {
-  name       = "prometheus"
-  repository = "https://prometheus-community.github.io/helm-charts"
-  chart      = "prometheus"
-  namespace  = "monitoring"
-  version    = "15.10.1"
-
-  depends_on = [google_container_cluster.primary, kubernetes_namespace.api_namespace]
-}
