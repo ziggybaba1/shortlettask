@@ -62,7 +62,7 @@ resource "google_container_node_pool" "primary_nodes" {
   count = length(data.google_container_cluster.existing_primary.*.name) == 0 ? 1:0
   name       = "${var.project_name}-pool"
   location   = var.region
-  cluster    = google_container_cluster.primary[0].name
+  cluster    = google_container_cluster.primary.name
   
   autoscaling {
     min_node_count = 1
@@ -91,10 +91,11 @@ resource "google_container_node_pool" "primary_nodes" {
   }
 }
 
+# Kubernetes Provider (moved before GKE cluster)
 provider "kubernetes" {
-  host                   = "https://${google_container_cluster.primary[0].endpoint}"
+  host                   = "https://${google_container_cluster.primary.endpoint}"
   token                  = data.google_client_config.default.access_token
-  cluster_ca_certificate = base64decode(google_container_cluster.primary[0].master_auth[0].cluster_ca_certificate)
+  cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
 }
 
 resource "null_resource" "delay" {
