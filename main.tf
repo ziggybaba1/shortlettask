@@ -6,7 +6,6 @@ terraform {
     }
     kubernetes={
       source="hashicorp/kubernetes"
-      version = ">= 2.17.0"
     }
   }
 }
@@ -63,7 +62,7 @@ resource "google_container_node_pool" "primary_nodes" {
   count = length(data.google_container_cluster.existing_primary.*.name) == 0 ? 1:0
   name       = "${var.project_name}-pool"
   location   = var.region
-  cluster    = google_container_cluster.primary[0].name
+  cluster    = google_container_cluster.primary.name
   
   autoscaling {
     min_node_count = 1
