@@ -48,4 +48,4 @@ jobs:
         run: |
           terraform init
           terraform plan
-          terraform apply -auto-approve || echo "Infrastructure already exists, skipping..."
+          terraform apply || echo "Infrastructure already exists, skipping..."

@@ -5,8 +5,13 @@ provider "google" {
 
 data "google_client_config" "default" {}
 
+data "google_compute_network" "existing_vpc" {
+  name    = "${var.project_name}-vpc-network"
+  project = var.project_id
+}
 # VPC
 resource "google_compute_network" "vpc" {
+  count                   = length(data.google_compute_network.existing_vpc.*.name) == 0 ? 1 : 0
   name                    = "${var.project_name}-vpc-network"
   auto_create_subnetworks = "false"
 }
