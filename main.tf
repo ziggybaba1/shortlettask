@@ -106,12 +106,12 @@ resource "null_resource" "delay" {
   }
 }
 
-resource "kubernetes_namespace" "kn" {
-  metadata {
-    name = "${var.project_name}-namespace"
-  }
-  depends_on = [null_resource.delay]
-}
+# resource "kubernetes_namespace" "kn" {
+#   metadata {
+#     name = "${var.project_name}-namespace"
+#   }
+#   depends_on = [null_resource.delay]
+# }
 
 resource "kubernetes_deployment" "api_shortlet" {
  metadata {
