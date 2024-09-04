@@ -37,6 +37,12 @@ resource "google_compute_subnetwork" "subnet" {
   ip_cidr_range = "10.10.0.0/24"
 }
 
+# Kubernetes Provider (moved before GKE cluster)
+provider "kubernetes" {
+  host                   = "https://${google_container_cluster.primary.endpoint}"
+  token                  = data.google_client_config.default.access_token
+  cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
+}
 
 data "google_container_cluster" "existing_primary" {
   name = "${var.project_name}-cluster"
@@ -91,12 +97,7 @@ resource "google_container_node_pool" "primary_nodes" {
   }
 }
 
-# Kubernetes Provider (moved before GKE cluster)
-provider "kubernetes" {
-  host                   = "https://${google_container_cluster.primary[0].endpoint}"
-  token                  = data.google_client_config.default.access_token
-  cluster_ca_certificate = base64decode(google_container_cluster.primary[0].master_auth[0].cluster_ca_certificate)
-}
+
 
 resource "null_resource" "delay" {
   depends_on = [google_container_cluster.primary]
