@@ -80,7 +80,7 @@ resource "kubernetes_namespace" "kn" {
   }
 }
 
-resource "kubernetes_deployment" "api_skaffold" {
+resource "kubernetes_deployment" "api_shortlet" {
  metadata {
     name      = "${var.project_name}"
     namespace = kubernetes_namespace.kn.metadata.0.name
