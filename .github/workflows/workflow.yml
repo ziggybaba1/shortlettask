@@ -48,5 +48,6 @@ jobs:
         run: |
           terraform init
           terraform import google_compute_network.vpc projects/sixth-syntax-434405-p0/global/networks/shortlet-vpc-network
+          terraform import google_compute_subnetwork.subnet projects/sixth-syntax-434405-p0/regions/us-east1/subnetworks/shortlet-subnet
           terraform plan
           terraform apply -auto-approve || echo "Infrastructure already exists, skipping..."
