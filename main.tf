@@ -1,8 +1,8 @@
 terraform {
-  required_version = ">= 1.3.7"
   required_providers {
     google= {
-      source ="hashicorp/google"
+      source ="hashicorp/google",
+      version = "~> 4.0"
     }
     kubernetes={
       source="hashicorp/kubernetes"
@@ -93,70 +93,6 @@ resource "google_container_node_pool" "primary_nodes" {
     tags         = ["${var.project_name}-node", "${var.project_name}-cluster","web-server"]
     metadata = {
       disable-legacy-endpoints = "true"
-    }
-  }
-}
-
-
-
-resource "null_resource" "delay" {
-  depends_on = [google_container_cluster.primary]
-  provisioner "local-exec" {
-    command = "sleep 30"
-  }
-}
-
-# resource "kubernetes_namespace" "kn" {
-#   metadata {
-#     name = "${var.project_name}-namespace"
-#   }
-#   depends_on = [null_resource.delay]
-# }
-
-resource "kubernetes_deployment" "api_shortlet" {
- metadata {
-    name      = "${var.project_name}"
-    namespace = "${var.project_name}-namespace"
-  }
-  spec {
-    replicas = 1
-    selector {
-      match_labels = {
-        app = "${var.project_name}"
-      }
-    }
-    template {
-      metadata {
-        labels = {
-          app = "${var.project_name}"
-        }
-      }
-      spec {
-        container {
-          image = "docker.io/${var.docker_hub_username}/php-api:latest"
-          name  = "${var.project_name}"
-          port {
-            container_port = 80
-          }
-        }
-      }
-    }
-  }
-}
-
-resource "kubernetes_service" "api_shortlet_service" {
-  metadata {
-    name      = "${var.project_name}"
-    namespace = "${var.project_name}-namespace"
-  }
-  spec {
-    selector = {
-      app = kubernetes_deployment.api_shortlet.spec.0.template.0.metadata.0.labels.app
-    }
-    type = "LoadBalancer"
-    port {
-      port        = 80
-      target_port = 80
     }
   }
 }
