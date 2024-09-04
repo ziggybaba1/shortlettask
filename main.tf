@@ -1,10 +1,12 @@
 terraform {
+  required_version = ">= 1.3.7"
   required_providers {
     google= {
       source ="hashicorp/google"
     }
     kubernetes={
       source="hashicorp/kubernetes"
+      version = ">= 2.17.0"
     }
   }
 }
@@ -39,7 +41,6 @@ provider "kubernetes" {
   host                   = google_container_cluster.primary.endpoint
   token                  = data.google_client_config.default.access_token
   cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
-
 }
 
 data "google_container_cluster" "existing_primary" {
