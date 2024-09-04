@@ -38,11 +38,11 @@ resource "google_compute_subnetwork" "subnet" {
 }
 
 # Kubernetes Provider (moved before GKE cluster)
-provider "kubernetes" {
-  host                   = "https://${google_container_cluster.primary.endpoint}"
-  token                  = data.google_client_config.default.access_token
-  cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
-}
+# provider "kubernetes" {
+#   host                   = "https://${google_container_cluster.primary.endpoint}"
+#   token                  = data.google_client_config.default.access_token
+#   cluster_ca_certificate = base64decode(google_container_cluster.primary.master_auth[0].cluster_ca_certificate)
+# }
 
 data "google_container_cluster" "existing_primary" {
   name = "${var.project_name}-cluster"
