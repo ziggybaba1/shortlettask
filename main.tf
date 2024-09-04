@@ -3,6 +3,8 @@ provider "google" {
   region  = var.region
 }
 
+data "google_client_config" "default" {}
+
 # VPC
 resource "google_compute_network" "vpc" {
   name                    = "${var.project_name}-vpc-network"
@@ -35,7 +37,7 @@ resource "google_container_cluster" "primary" {
 
 # Separately Managed Node Pool
 resource "google_container_node_pool" "primary_nodes" {
-  name       = "${project_name}-pool"
+  name       = "${var.project_name}-pool"
   location   = var.region
   cluster    = google_container_cluster.primary.name
   
